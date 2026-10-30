@@ -62,8 +62,9 @@ model weights, which are not in this repository** — see
 > from `ensurepip` — says nothing about path length. This was confirmed during the
 > [clean-room test](./docs/handover/CLEAN_ROOM_TEST.md).
 >
-> Clone with **full history**: `backend/weights/best_behavior_model.joblib` is
-> recoverable from an old commit, which a `--depth 1` clone cannot reach.
+> Clone with **full history**: an older fallback copy of the behavior model is
+> recoverable from an old commit, which a `--depth 1` clone cannot reach. The final
+> `behavior.joblib` is delivered out of band, not through git.
 
 ### 1. Infrastructure
 

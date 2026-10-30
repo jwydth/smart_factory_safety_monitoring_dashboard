@@ -101,7 +101,7 @@ This section records the current implemented state after the performance, stream
 - Pose/Behavior uses ordered 60-frame windows with a 12-sample prediction cadence. Pose gaps may be repaired before feature extraction by same-track interpolation for at most eight consecutive frames. Gaps longer than eight frames, epoch changes, low-confidence endpoints, or implausible center motion are not fabricated.
 - Multi-camera Pose inference uses bounded micro-batching. CUDA Pose/ReID work is isolated from CPU tracker updates, tracker updates for different cameras can run in parallel, and each camera remains ordered internally.
 - GPU admission uses deadline aging instead of permanent strict priority. Behavior, PPE, and Sign retain priorities, but lower-priority work cannot starve indefinitely.
-- The current primary Behavior classifier is `weights/best_behavior_model.joblib`, an `ExtraTreesClassifier` running on CPU. XGBoost/UBJ remains only a legacy fallback and must not be reported as the active production model.
+- The current primary Behavior classifier is `weights/behavior.joblib`, an `ExtraTreesClassifier` running on CPU. XGBoost/UBJ remains only a legacy fallback and must not be reported as the active production model.
 - Live model cadence is intentionally asymmetric: Behavior/Pose targets the ordered 24 FPS source timeline, PPE targets approximately 8 FPS nominally (about 6 FPS under the verified full two-camera workload), and Sign targets 1 FPS on a phase that does not overlap the nominal PPE frame.
 - PPE, Sign, and Behavior are independent model paths. Zone monitoring shares person detection/tracking with PPE and therefore keeps the PPE detector active when Zone is enabled even if PPE compliance checking is disabled.
 

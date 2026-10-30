@@ -23,11 +23,11 @@ left alone; the ones an operator actually sets are listed first.
 | `MINIO_ACCESS_KEY` | `None` | Required for evidence snapshots. |
 | `MINIO_SECRET_KEY` | `None` | Required for evidence snapshots. |
 | `MINIO_BUCKET_NAME` | `None` | Required for evidence snapshots. |
-| `MODEL_PATH` | `'weights/ppe_v4.pt'` | Point at the PPE weights, or at a .engine to use TensorRT. |
+| `MODEL_PATH` | `'weights/ppe.pt'` | Point at the PPE weights, or at a .engine to use TensorRT. |
 | `FALL_MODEL_PATH` | `'weights/pose.pt'` | Pose weights. |
-| `FALL_BEHAVIOR_MODEL_PATH` | `'weights/best_behavior_model.joblib'` | Behavior classifier. See backend/weights/README.md. |
+| `FALL_BEHAVIOR_MODEL_PATH` | `'weights/behavior.joblib'` | Behavior classifier. See backend/weights/README.md. |
 | `FALL_REID_MODEL_PATH` | `'weights/reid.pt'` | Re-identification weights. |
-| `SIGN_MODEL_PATH` | `'weights/sign_model.pt'` | Sign-detection weights. |
+| `SIGN_MODEL_PATH` | `'weights/sign.pt'` | Sign-detection weights. |
 | `ALLOWED_ORIGINS` | `['http://localhost:3000', 'http://127.0.0.1:3000']` | Must list the frontend origin or the browser is blocked by CORS. |
 | `INFERENCE_DEVICE` | `'auto'` | Leave auto unless pinning a specific GPU or forcing CPU. |
 | `MAX_CONCURRENT_STREAMS` | `8` | Raise only if more cameras must stream at once. |
@@ -117,7 +117,7 @@ Grouped by name prefix. Defaults are the values in `config.py`; a value in
 | Setting | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `FALL_MODEL_PATH` | `str` | `'weights/pose.pt'` | Behavioral-detection / behavior-incident settings. Pose + behavior-classifier pipeline.  The classifier was trained on 60-frame COCO-pose windows and predicts others/running/falling. |
-| `FALL_BEHAVIOR_MODEL_PATH` | `str` | `'weights/best_behavior_model.joblib'` | Primary classifier: 141 transformed pose/motion features -> others/running/falling. The current production artifact is an sklearn ExtraTreesClassifier. |
+| `FALL_BEHAVIOR_MODEL_PATH` | `str` | `'weights/behavior.joblib'` | Primary classifier: 141 transformed pose/motion features -> others/running/falling. The current production artifact is an sklearn ExtraTreesClassifier. |
 | `FALL_REID_MODEL_PATH` | `str` | `'weights/reid.pt'` | — |
 | `FALL_PERSON_CONFIDENCE` | `float` | `0.2` | — |
 | `FALL_BEHAVIOR_WINDOW_FRAMES` | `int` | `60` | — |
@@ -167,7 +167,7 @@ Grouped by name prefix. Defaults are the values in `config.py`; a value in
 
 | Setting | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `MODEL_PATH` | `str` | `'weights/ppe_v4.pt'` | — |
+| `MODEL_PATH` | `str` | `'weights/ppe.pt'` | — |
 | `MODEL_POOL_PREWARM` | `int` | `3` | How many of those instances are built and warmed at startup. These absorb the multi-second load+warm cost for the first cameras to connect; the rest pay it once, on their first connection. Keep it at least as high as the number of cameras normally streaming at once. |
 
 
@@ -208,7 +208,7 @@ Grouped by name prefix. Defaults are the values in `config.py`; a value in
 
 | Setting | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `SIGN_MODEL_PATH` | `str` | `'weights/sign_model.pt'` | Sign-detection / auto-zone settings |
+| `SIGN_MODEL_PATH` | `str` | `'weights/sign.pt'` | Sign-detection / auto-zone settings |
 | `SIGN_CONFIDENCE_THRESHOLD` | `float` | `0.35` | — |
 | `SIGN_CLASS_ZONE_MAP` | `dict[int, str]` | `{2: 'RESTRICTED', 3: 'SLIPPERY'}` | — |
 | `SIGN_CLASS_NAMES` | `dict[int, str]` | `{0: 'M001_MustWearHardHat', 1: 'M002_MustWearSafetyVest', 2: 'P004_NoThoroughfare', 3: 'W011_Slippery'}` | — |

@@ -16,8 +16,8 @@ Ethan Phuc (Nguyen Trong Phuc) — ethan.phuc@deheus.com
       handover baseline; at handover `main` was 53 commits behind it and three months
       old, so the documentation does not describe the code on `main`
 - [ ] Tag `v1.0.0-handover` is present
-- [ ] **All five model weight files received** out of band: `ppe_v4.pt`, `sign_model.pt`,
-      `pose.pt`, `reid.pt`, `best_behavior_model.joblib` — delivered by the capstone
+- [ ] **All five model weight files received** out of band: `ppe.pt`, `sign.pt`,
+      `pose.pt`, `reid.pt`, `behavior.joblib` — delivered by the capstone
       team member who also documents the `ppe_labeling` tool
 - [ ] TensorRT `.engine` files received — **what the demo actually ran on**, so expect
       `.pt`-only deployment to be slower. They only load on hardware matching the

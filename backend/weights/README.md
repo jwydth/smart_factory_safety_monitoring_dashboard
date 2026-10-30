@@ -23,9 +23,9 @@ covers the five required models plus the optional TensorRT engines.
 > `scripts/verify_weights.py` — it checks every checksum and exits non-zero if
 > anything is missing or wrong.
 
-`best_behavior_model.joblib` is included in that delivery **and** is independently
-recoverable from this repository's git history, so it is the one file that cannot be
-lost. See [below](#the-behavior-model-is-recoverable-from-this-repository).
+The final behavior model, `behavior.joblib`, exists **only** in that delivery. An older
+version is in this repository's git history and can serve as a fallback, but it is not
+the final model. See [below](#git-history-holds-an-older-behavior-model-fallback-only).
 
 The `source` field in `MANIFEST.json` records how each model was *trained*, which is a
 different question from how to *obtain* it; `obtain_from` answers the latter.
@@ -56,11 +56,11 @@ This table is the human summary.
 
 | File | Loaded by | Purpose | Origin |
 | --- | --- | --- | --- |
-| `ppe_v4.pt` | `MODEL_PATH` | PPE compliance: people, helmets, vests, cleaning coveralls | **Custom-trained** for this project, 2026-08-26 |
-| `sign_model.pt` | `SIGN_MODEL_PATH` | Safety-sign detection, which drives automatic zone suggestions | **Custom-trained** for this project, 2026-06-14 |
+| `ppe.pt` | `MODEL_PATH` | PPE compliance: people, helmets, vests, cleaning coveralls | **Custom-trained** for this project, 2026-08-26 |
+| `sign.pt` | `SIGN_MODEL_PATH` | Safety-sign detection, which drives automatic zone suggestions | **Custom-trained** for this project, 2026-06-14 |
 | `pose.pt` | `FALL_MODEL_PATH` | 17-keypoint pose estimation, feeding the behavior classifier | Upstream Ultralytics COCO-pose model |
 | `reid.pt` | `FALL_REID_MODEL_PATH` | Appearance embeddings so track ids survive occlusion | Upstream Ultralytics ImageNet classifier |
-| `best_behavior_model.joblib` | `FALL_BEHAVIOR_MODEL_PATH` | Behavior classification: others / running / falling | **Custom-trained** for this project |
+| `behavior.joblib` | `FALL_BEHAVIOR_MODEL_PATH` | Behavior classification: others / running / falling | **Custom-trained** for this project |
 
 **Only the three custom-trained models are genuinely irreplaceable.** `pose.pt` and
 `reid.pt` are general-purpose public checkpoints whose metadata shows training on COCO
@@ -72,10 +72,10 @@ because confirming it requires downloading and comparing.
 
 | Model | Classes |
 | --- | --- |
-| `ppe_v4.pt` | `person`, `helmet`, `vest`, `cleaning_coverall` |
-| `sign_model.pt` | `M014_Helmet`, `M015_Vest`, `P004_NoThoroughfare`, `W011_Slippery` |
+| `ppe.pt` | `person`, `helmet`, `vest`, `cleaning_coverall` |
+| `sign.pt` | `M014_Helmet`, `M015_Vest`, `P004_NoThoroughfare`, `W011_Slippery` |
 | `pose.pt` | `person`, with 17 COCO keypoints |
-| `best_behavior_model.joblib` | `others`, `running`, `falling` — **in that index order** |
+| `behavior.joblib` | `others`, `running`, `falling` — **in that index order** |
 
 The behavior classifier's order matters: `fall_detector.py` unpacks `predict_proba`
 positionally (`others, running, falling = probabilities`). A retrained model that
@@ -85,38 +85,36 @@ labels with no error anywhere. It takes 141 input features.
 `cleaning_coverall` is what identifies a janitor, which is why janitors are exempt
 from slippery-zone violations but still flagged in restricted zones.
 
-## The behavior model is recoverable from this repository
+## Git history holds an older behavior model (fallback only)
 
-`best_behavior_model.joblib` was deleted from git in `c7653a4`, but it is still in
-history and can be restored without contacting anyone:
+The final behavior model is the `behavior.joblib` supplied by the capstone team on
+2026-10-30 (ExtraTrees, 300 trees, 23,122,305 bytes). It is delivered out of band and is
+**not** in git. Get it from the delivery above.
+
+An **older** ExtraTrees version (500 trees, 11,510,305 bytes) was committed in
+`de167f9` as `best_behavior_model.joblib` and deleted in `c7653a4`. Use it only if the
+final file is unobtainable:
 
 ```bash
-# from the repository root
-git show de167f9:backend/weights/best_behavior_model.joblib > backend/weights/best_behavior_model.joblib
+# from the repository root - fallback only, NOT the final model
+git show de167f9:backend/weights/best_behavior_model.joblib > backend/weights/behavior.joblib
 ```
 
-Verified twice: the restored file loads as a scikit-learn `ExtraTreesClassifier` with
-`n_features_in_=141` and `classes_=[0 1 2]`, is 11,510,305 bytes, and matches the
-SHA-256 in `MANIFEST.json`. The command was also run verbatim on a fresh clone during
-the [clean-room test](../../docs/handover/CLEAN_ROOM_TEST.md), where
-`verify_weights.py` then reported it `OK`.
+It loads as an `ExtraTreesClassifier` with `n_features_in_=141` and `classes_=[0 1 2]`,
+but `verify_weights.py` will report a checksum mismatch, because `MANIFEST.json`
+records the final model. That mismatch is expected for the fallback.
 
-**This needs a clone with history.** `de167f9` is an ancestor of the current branch, so
-a normal clone has it, but a `--depth 1` shallow clone **cannot** produce this file.
+**This needs a clone with history.** A `--depth 1` shallow clone cannot reach `de167f9`.
 
-`VERIFY:` whether `de167f9`'s copy is the final trained version. It is the latest one
-that exists in git, and the capstone team confirmed ExtraTrees is the final
-architecture, but a newer file could exist outside git.
+### Identify `behavior.joblib` by checksum, not by name
 
-### Do not use `behavior.joblib`
-
-A file named `behavior.joblib` may still be present on a development machine. It is an
-**older XGBoost model, not the current one**, and it is a trap: it accepts the same 141
-features and returns the same three classes, so it loads and runs silently. The only
-visible symptom is one failing test
+An **older XGBoost model** was also named `behavior.joblib` and may still be present on
+a development machine. It is a trap: it accepts the same 141 features and returns the
+same three classes, so it loads and runs silently. The only visible symptom is one
+failing test
 (`tests/test_fall_detector.py::test_primary_behavior_classifier_is_extra_trees_with_configured_threads`).
-Its checksum is recorded under `superseded` in `MANIFEST.json` so it can be identified
-and discarded.
+Its checksum is recorded under `superseded` in `MANIFEST.json`. Run
+`scripts/verify_weights.py` to confirm you have the final model.
 
 `behavior.ubj` is an older still, optional fallback that is used only when the primary
 file is absent. It exists neither in the repository nor in history. Supplying it would
@@ -133,8 +131,8 @@ recorded under `accelerated_optional` in `MANIFEST.json`.
 > files.** Its `backend/.env` set:
 >
 > ```bash
-> MODEL_PATH=weights/ppe_v4.engine          # PPE
-> SIGN_MODEL_PATH=weights/sign_model.engine # signs
+> MODEL_PATH=weights/ppe.engine             # PPE
+> SIGN_MODEL_PATH=weights/sign.engine       # signs
 > FALL_MODEL_PATH=weights/pose.engine       # the pose stage of fall detection
 > FALL_REID_MODEL_PATH=weights/reid.pt      # the only one left as .pt
 > ```
@@ -154,9 +152,9 @@ explicitly:
 
 ```bash
 # in backend/.env, to use the accelerated models
-MODEL_PATH=weights/ppe_v4.engine
+MODEL_PATH=weights/ppe.engine
 FALL_MODEL_PATH=weights/pose.engine
-SIGN_MODEL_PATH=weights/sign_model.engine
+SIGN_MODEL_PATH=weights/sign.engine
 ```
 
 ### They will only load on matching hardware
