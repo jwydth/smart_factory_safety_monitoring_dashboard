@@ -1,0 +1,221 @@
+
+> deheus-dashboard@0.1.0 lint
+> eslint
+
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\analytics\analytics-dashboard.tsx
+  252:9  warning  The 'cameraOptions' logical expression could make the dependencies of useMemo Hook (at line 255) change on every render. To fix this, wrap the initialization of 'cameraOptions' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\dashboard-shell.tsx
+    11:3   warning  'Maximize2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   368:25  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\dashboard-shell.tsx:368:25
+  366 |   useLayoutEffect(() => {
+  367 |     const storedViewMode = loadStoredViewMode();
+> 368 |     if (storedViewMode) setViewModeState(storedViewMode);
+      |                         ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  369 |
+  370 |     const storedSelection = loadStoredMatrixSelection();
+  371 |     if (storedSelection) {              react-hooks/set-state-in-effect
+   454:18  warning  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   554:18  warning  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   570:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\dashboard-shell.tsx:570:5
+  568 |     const key = zoneDrawing.zonesSourceKey;
+  569 |     if (!key) return;
+> 570 |     setCameraZones((prev) => ({ ...prev, [key]: zoneDrawing.zonesForVideo }));
+      |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  571 |   }, [zoneDrawing.zonesForVideo, zoneDrawing.zonesSourceKey]);
+  572 |
+  573 |   const autoZone = useAutoZoneSuggestions({  react-hooks/set-state-in-effect
+   721:6   warning  React Hook useEffect has a missing dependency: 'handleCameraChange'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+   736:6   warning  React Hook useEffect has missing dependencies: 'activeCameraId', 'liveStream', and 'zoneDrawing'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  1059:53  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unescaped-entities
+  1059:66  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unescaped-entities
+  1859:26  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\dashboard-shell.tsx:1859:26
+  1857 |   useLayoutEffect(() => {
+  1858 |     const stored = loadStoredFiltersExpanded();
+> 1859 |     if (stored !== null) setFiltersExpanded(stored);
+       |                          ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  1860 |   }, []);
+  1861 |   const toggleFiltersExpanded = () => {
+  1862 |     setFiltersExpanded((prev) => {        react-hooks/set-state-in-effect
+  2490:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\dashboard-shell.tsx:2490:5
+  2488 |     const cached = loadCachedCameras();
+  2489 |     if (cached.length === 0) return;
+> 2490 |     setCameras(cached);
+       |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  2491 |     const active = cached.find((camera) => camera.active) || cached[0];
+  2492 |     setActiveCameraId(active?.id ?? 0);
+  2493 |     setCamerasLoading(false);       react-hooks/set-state-in-effect
+  2665:32  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\dashboard\zone-button.tsx
+  30:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\factory3d\factory-3d-view.tsx
+  107:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\factory3d\factory-3d-view.tsx:107:9
+  105 |       const activeCam = cameras.find((c) => c.id === activeCameraId);
+  106 |       if (activeCam) {
+> 107 |         setSelectedZoneId(activeCam.zoneId as ZoneId);
+      |         ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  108 |       }
+  109 |     } else {
+  110 |       const firstActive = mergedZones.find((z) => z.active);  react-hooks/set-state-in-effect
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\factory3d\use-zone-incidents.ts
+  133:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\factory3d\use-zone-incidents.ts:133:10
+  131 |
+  132 |   useEffect(() => {
+> 133 |     void load();
+      |          ^^^^ Avoid calling setState() directly within an effect
+  134 |   }, [load]);
+  135 |
+  136 |   const aggregates = useMemo(() => {  react-hooks/set-state-in-effect
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\ppe\video-tracking-overlay.tsx
+  552:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\components\ppe\video-tracking-overlay.tsx:552:5
+  550 |
+  551 |   useEffect(() => {
+> 552 |     setEditableNames((prev) => {
+      |     ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  553 |       const next = { ...prev };
+  554 |       for (const s of zoneSuggestions) {
+  555 |         if (!(s.suggestion_id in next)) {  react-hooks/set-state-in-effect
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useAutoZoneSuggestions.ts
+  56:48  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+  60:47  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+  66:47  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+  71:48  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useLiveStream.ts
+   15:12  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+   81:13  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+   84:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+  209:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useLiveStream.ts:209:5
+  207 |   useEffect(() => {
+  208 |     if (fallEnabled) return;
+> 209 |     setStreamData((prev) => ({
+      |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  210 |       ...prev,
+  211 |       fall_summary: null,
+  212 |       fall_detections: [],  react-hooks/set-state-in-effect
+  223:40  warning  The ref value 'pendingImageUrlRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'pendingImageUrlRef.current' to a variable inside the effect, and use that variable in the cleanup function                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  447:60  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+  580:43  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+  671:6   warning  React Hook useEffect has missing dependencies: 'isLive' and 'setStatus'. Either include them or remove the dependency array. If 'setStatus' changes too often, find the parent component that defines it and wrap that definition in useCallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useZoneDrawing.ts
+  135:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useZoneDrawing.ts:135:5
+  133 |   useEffect(() => {
+  134 |     // Exclusion zones do not generate events; Walkway tolerates longer presence.
+> 135 |     setDwellThresholdSeconds(zoneType === "IGNORE" ? 0 : zoneType === "WALKWAY" ? 3 : 1.5);
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  136 |   }, [zoneType]);
+  137 |
+  138 |   useEffect(() => {  react-hooks/set-state-in-effect
+  142:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\hooks\useZoneDrawing.ts:142:9
+  140 |       const selectedZone = zonesForVideo.find((z) => z.id === selectedZoneId);
+  141 |       if (selectedZone) {
+> 142 |         setZoneName(selectedZone.name);
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  143 |         setZoneType(selectedZone.type);
+  144 |       }
+  145 |     }                                            react-hooks/set-state-in-effect
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\lib\ppe-api.ts
+  431:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\types\camera.ts
+  26:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\frontend\src\types\detection.ts
+  136:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 34 problems (21 errors, 13 warnings)
+
+npm notice
+npm notice New major version of npm available! 11.13.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+EXIT=1

@@ -1,0 +1,331 @@
+E402 Module level import not at top of file
+  --> app\main.py:8:1
+   |
+ 6 | )
+ 7 |
+ 8 | from apscheduler.schedulers.background import BackgroundScheduler
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 | from fastapi import FastAPI
+10 | from fastapi.middleware.cors import CORSMiddleware
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:9:1
+   |
+ 8 | from apscheduler.schedulers.background import BackgroundScheduler
+ 9 | from fastapi import FastAPI
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 | from fastapi.middleware.cors import CORSMiddleware
+11 | from fastapi.staticfiles import StaticFiles
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:10:1
+   |
+ 8 | from apscheduler.schedulers.background import BackgroundScheduler
+ 9 | from fastapi import FastAPI
+10 | from fastapi.middleware.cors import CORSMiddleware
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 | from fastapi.staticfiles import StaticFiles
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:11:1
+   |
+ 9 | from fastapi import FastAPI
+10 | from fastapi.middleware.cors import CORSMiddleware
+11 | from fastapi.staticfiles import StaticFiles
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 |
+13 | from app.core.config import settings
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:13:1
+   |
+11 | from fastapi.staticfiles import StaticFiles
+12 |
+13 | from app.core.config import settings
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 | from app.core.runtime import configure_inference_runtime
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:14:1
+   |
+13 | from app.core.config import settings
+14 | from app.core.runtime import configure_inference_runtime
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |
+16 | configure_inference_runtime()
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:18:1
+   |
+16 |   configure_inference_runtime()
+17 |
+18 | / from app.routers import (
+19 | |     analytics,
+20 | |     cameras,
+21 | |     detection,
+22 | |     fall_detection,
+23 | |     features,
+24 | |     reports,
+25 | |     streaming,
+26 | |     testing,
+27 | |     zones,
+28 | | )
+   | |_^
+29 |   from app.services.reporting.scheduler import check_and_send_scheduled_report
+30 |   from app.storage.local_paths import SNAPSHOT_DIR, ensure_snapshot_dir, ensure_upload_dir
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:29:1
+   |
+27 |     zones,
+28 | )
+29 | from app.services.reporting.scheduler import check_and_send_scheduled_report
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+30 | from app.storage.local_paths import SNAPSHOT_DIR, ensure_snapshot_dir, ensure_upload_dir
+   |
+
+E402 Module level import not at top of file
+  --> app\main.py:30:1
+   |
+28 | )
+29 | from app.services.reporting.scheduler import check_and_send_scheduled_report
+30 | from app.storage.local_paths import SNAPSHOT_DIR, ensure_snapshot_dir, ensure_upload_dir
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+31 |
+32 | app = FastAPI(
+   |
+
+F401 [*] `app.storage.local_paths.ensure_upload_dir` imported but unused
+  --> app\main.py:30:72
+   |
+28 | )
+29 | from app.services.reporting.scheduler import check_and_send_scheduled_report
+30 | from app.storage.local_paths import SNAPSHOT_DIR, ensure_snapshot_dir, ensure_upload_dir
+   |                                                                        ^^^^^^^^^^^^^^^^^
+31 |
+32 | app = FastAPI(
+   |
+help: Remove unused import: `app.storage.local_paths.ensure_upload_dir`
+
+F401 [*] `fastapi.responses.HTMLResponse` imported but unused
+  --> app\routers\streaming.py:8:31
+   |
+ 6 | from pathlib import Path
+ 7 | from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Query
+ 8 | from fastapi.responses import HTMLResponse, Response
+   |                               ^^^^^^^^^^^^
+ 9 | from app.core.config import settings
+10 | from app.schemas.streaming import StreamEvent
+   |
+help: Remove unused import: `fastapi.responses.HTMLResponse`
+
+F401 [*] `app.schemas.detection.TrackingOverlayFrame` imported but unused
+ --> app\schemas\streaming.py:3:35
+  |
+1 | from typing import Literal, Optional, Any
+2 | from pydantic import BaseModel, Field
+3 | from app.schemas.detection import TrackingOverlayFrame, VideoSummary
+  |                                   ^^^^^^^^^^^^^^^^^^^^
+4 | from app.schemas.violation import ViolationReport, ZoneViolation
+  |
+help: Remove unused import
+
+F401 [*] `app.schemas.detection.VideoSummary` imported but unused
+ --> app\schemas\streaming.py:3:57
+  |
+1 | from typing import Literal, Optional, Any
+2 | from pydantic import BaseModel, Field
+3 | from app.schemas.detection import TrackingOverlayFrame, VideoSummary
+  |                                                         ^^^^^^^^^^^^
+4 | from app.schemas.violation import ViolationReport, ZoneViolation
+  |
+help: Remove unused import
+
+F401 [*] `app.schemas.violation.ViolationReport` imported but unused
+ --> app\schemas\streaming.py:4:35
+  |
+2 | from pydantic import BaseModel, Field
+3 | from app.schemas.detection import TrackingOverlayFrame, VideoSummary
+4 | from app.schemas.violation import ViolationReport, ZoneViolation
+  |                                   ^^^^^^^^^^^^^^^
+5 |
+6 | class StreamEvent(BaseModel):
+  |
+help: Remove unused import
+
+F401 [*] `app.schemas.violation.ZoneViolation` imported but unused
+ --> app\schemas\streaming.py:4:52
+  |
+2 | from pydantic import BaseModel, Field
+3 | from app.schemas.detection import TrackingOverlayFrame, VideoSummary
+4 | from app.schemas.violation import ViolationReport, ZoneViolation
+  |                                                    ^^^^^^^^^^^^^
+5 |
+6 | class StreamEvent(BaseModel):
+  |
+help: Remove unused import
+
+E731 Do not assign a `lambda` expression, use a `def`
+   --> app\services\behavior_features.py:127:5
+    |
+125 |     joint_motion = [_mean(_distance(first, second) for first, second in zip(previous["joint_positions"], current["joint_positions"], …
+126 |     torso, spread, still = _mean(arrays["torso_angle"][-24:]), _mean(arrays["spread_ratio"][-24:]), _mean(joint_motion)
+127 |     ramp = lambda value, low, high: min(1.0, max(0.0, (value - low) / (high - low)))
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+128 |     raw.update({"final_lying_score": _mean((1 - ramp(torso, 25, 75), ramp(spread, .8, 1.6), 1 - ramp(still, .01, .20))), "final_1s_bo…
+129 |     confidences = [float(score) for frame in frames if frame for score in frame.get("keypoint_scores", [])]
+    |
+help: Rewrite `ramp` as a `def`
+
+F401 [*] `app.services.behavior_incident_service.BehaviorIncidentService` imported but unused
+  --> app\services\fall_detector.py:34:52
+   |
+32 | )
+33 | from app.models.behavior_incident import BehaviorIncidentSeverity, BehaviorType
+34 | from app.services.behavior_incident_service import BehaviorIncidentService, open_behavior_incident_service
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^
+35 | from app.services.ppe.device import _select_inference_device
+   |
+help: Remove unused import: `app.services.behavior_incident_service.BehaviorIncidentService`
+
+F841 Local variable `detections` is assigned to but never used
+  --> app\services\fall_detector.py:93:9
+   |
+91 | …     model = self._ensure_model()
+92 | …     result = model.predict(source=image, conf=settings.FALL_PERSON_CONFIDENCE, imgsz=settings.BEHAVIOR_POSE_IMGSZ, device=self.devic…
+93 | …     detections = _pose_detections(result, fallback_track_ids=True)
+   |       ^^^^^^^^^^
+94 | …     # A single image is intentionally not classified: behavior.joblib needs
+95 | …     # a full 60-frame motion window.  Do not invent a temporary class.
+   |
+help: Remove assignment to unused variable `detections`
+
+F401 [*] `app.services.ServiceValidationError` imported but unused
+  --> app\services\feature_service.py:8:48
+   |
+ 6 | from app.repositories.feature_repository import FeatureRepository
+ 7 | from app.repositories.camera_feature_config_repository import CameraFeatureConfigRepository
+ 8 | from app.services import ServiceNotFoundError, ServiceValidationError
+   |                                                ^^^^^^^^^^^^^^^^^^^^^^
+ 9 | from sqlmodel import Session
+10 | from app.db.session import get_session
+   |
+help: Remove unused import: `app.services.ServiceValidationError`
+
+F401 `app.services.zone_service.ZoneViolationRecord` imported but unused; consider removing, adding to `__all__`, or using a redundant alias
+  --> app\services\video_pipeline\__init__.py:57:5
+   |
+55 | from app.services.zone_service import (
+56 |     COORD_SCALE,
+57 |     ZoneViolationRecord,
+   |     ^^^^^^^^^^^^^^^^^^^
+58 |     load_zones,
+59 |     get_person_foot_point,
+   |
+help: Use an explicit re-export: `ZoneViolationRecord as ZoneViolationRecord`
+
+F401 [*] `app.services.incident_normalization.default_zone_severity` imported but unused
+  --> app\services\zone_violation_service.py:18:49
+   |
+16 | from app.services import ServiceNotFoundError, ServiceValidationError
+17 | from app.services.camera_identity import normalize_camera_source_key
+18 | from app.services.incident_normalization import default_zone_severity
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^
+19 | from app.storage.evidence_storage import EvidenceStorage, get_evidence_storage
+   |
+help: Remove unused import: `app.services.incident_normalization.default_zone_severity`
+
+E402 Module level import not at top of file
+  --> scripts\check_model.py:8:1
+   |
+ 6 |     sys.path.insert(0, str(BACKEND_DIR_FOR_IMPORTS))
+ 7 |
+ 8 | from app.core.config import settings, BACKEND_DIR
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 | from app.services.ppe_detector import PPEDetector
+10 | from PIL import Image
+   |
+
+E402 Module level import not at top of file
+  --> scripts\check_model.py:9:1
+   |
+ 8 | from app.core.config import settings, BACKEND_DIR
+ 9 | from app.services.ppe_detector import PPEDetector
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 | from PIL import Image
+11 | import numpy as np
+   |
+
+E402 Module level import not at top of file
+  --> scripts\check_model.py:10:1
+   |
+ 8 | from app.core.config import settings, BACKEND_DIR
+ 9 | from app.services.ppe_detector import PPEDetector
+10 | from PIL import Image
+   | ^^^^^^^^^^^^^^^^^^^^^
+11 | import numpy as np
+   |
+
+E402 Module level import not at top of file
+  --> scripts\check_model.py:11:1
+   |
+ 9 | from app.services.ppe_detector import PPEDetector
+10 | from PIL import Image
+11 | import numpy as np
+   | ^^^^^^^^^^^^^^^^^^
+12 |
+13 | def test_model():
+   |
+
+E402 Module level import not at top of file
+  --> scripts\test_sign_detection.py:22:1
+   |
+20 | sys.path.insert(0, str(BACKEND_DIR))
+21 |
+22 | import cv2
+   | ^^^^^^^^^^
+23 | from ultralytics import YOLO
+   |
+
+E402 Module level import not at top of file
+  --> scripts\test_sign_detection.py:23:1
+   |
+22 | import cv2
+23 | from ultralytics import YOLO
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+24 |
+25 | # Class IDs the sign model recognises (must match config.py)
+   |
+
+F401 [*] `unittest.mock.call` imported but unused
+ --> tests\services\test_ppe_violation_service.py:2:33
+  |
+1 | from datetime import datetime, timezone
+2 | from unittest.mock import Mock, call
+  |                                 ^^^^
+3 |
+4 | import pytest
+  |
+help: Remove unused import: `unittest.mock.call`
+
+F401 [*] `app.schemas.detection.Summary` imported but unused
+  --> tests\test_auto_zone.py:11:79
+   |
+10 | from app.core.config import settings
+11 | from app.schemas.detection import BoundingBox, EquipmentStatus, PersonResult, Summary
+   |                                                                               ^^^^^^^
+12 | from app.services import ppe_detector as ppe
+13 | from app.services import video_pipeline
+   |
+help: Remove unused import: `app.schemas.detection.Summary`
+
+Found 29 errors.
+[*] 11 fixable with the `--fix` option (2 hidden fixes can be enabled with the `--unsafe-fixes` option).
+EXIT=1

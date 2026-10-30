@@ -1,0 +1,57 @@
+# Local development stack only.
+#
+# DEV ONLY: every credential default below (safety_password, minioadmin) is a
+# well-known placeholder committed to this repository. It is fine for a laptop
+# that exposes nothing outside localhost, and it is not acceptable anywhere else.
+# For any shared or production deployment, supply real values through the
+# environment instead of relying on these defaults — see docs/handover/SECURITY.md.
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      # DEV ONLY default password. Override POSTGRES_PASSWORD outside local dev.
+      POSTGRES_DB: ${POSTGRES_DB:-safety_monitoring}
+      POSTGRES_USER: ${POSTGRES_USER:-safety_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safety_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-safety_user} -d ${POSTGRES_DB:-safety_monitoring}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/minio
+    restart: unless-stopped
+    environment:
+      # DEV ONLY defaults, and they are the documented MinIO placeholders, so
+      # treat them as public. Override both outside local dev.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9011:9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:

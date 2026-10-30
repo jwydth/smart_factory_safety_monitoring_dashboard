@@ -1,0 +1,402 @@
+"""Unified, normalized read layer over PPE/zone/behavior incidents (see §2 of
+INCIDENT_ANALYTICS_IMPLEMENTATION_PLAN.md). Feed, detail, and analytics reads
+should all go through UnifiedIncidentService rather than re-deriving
+severity/type/zone normalization at each call site.
+
+This module only reads models/repositories — it deliberately does not import
+app/services/ppe/ or app/services/zone_service.py (see REFACTOR_NOTES.md's
+import boundary rule); those are detection-pipeline internals, not incident
+storage.
+"""
+
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Annotated
+
+from fastapi import Depends
+from sqlmodel import Session
+
+from app.core.config import settings
+from app.db.session import get_session
+from app.models.behavior_incident import BehaviorEvidence, BehaviorIncident
+from app.models.camera import Camera
+from app.models.physical_zone import PhysicalZone
+from app.models.ppe_violation import PPEViolation
+from app.models.zone_violation import ZoneViolation
+from app.repositories.behavior_incident_repository import BehaviorIncidentRepository
+from app.repositories.camera_repository import CameraRepository
+from app.repositories.physical_zone_repository import PhysicalZoneRepository
+from app.repositories.ppe_violation_repository import PPEViolationRepository
+from app.repositories.zone_violation_repository import ZoneViolationRepository
+from app.services import ServiceValidationError
+from app.services.incident_normalization import (
+    behavior_type_label,
+    normalize_behavior_severity,
+    normalize_ppe_severity,
+    normalize_zone_severity,
+    ppe_type_label,
+    zone_type_label,
+)
+from app.storage.evidence_storage import EvidenceStorage, get_evidence_storage
+
+UNASSIGNED_ZONE_NAME = "Unassigned"
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class UnifiedIncident:
+    id: int
+    category: str  # "ppe" | "zone" | "behavior"
+    type: str
+    severity: str  # "Critical" | "High" | "Medium" | "Low"
+    timestamp: datetime
+    camera_id: int | None
+    zone_id: int | None  # resolved via camera.home_zone_id
+    zone_name: str  # physical zone name, "Unassigned" when zone_id is None
+    camera_label: str
+    snapshot_url: str | None
+
+
+class UnifiedIncidentService:
+    def __init__(
+        self,
+        ppe_repository: Annotated[
+            PPEViolationRepository, Depends(PPEViolationRepository)
+        ],
+        zone_repository: Annotated[
+            ZoneViolationRepository, Depends(ZoneViolationRepository)
+        ],
+        behavior_repository: Annotated[
+            BehaviorIncidentRepository, Depends(BehaviorIncidentRepository)
+        ],
+        camera_repository: Annotated[CameraRepository, Depends(CameraRepository)],
+        physical_zone_repository: Annotated[
+            PhysicalZoneRepository, Depends(PhysicalZoneRepository)
+        ],
+        storage: EvidenceStorage | None = None,
+    ) -> None:
+        self.ppe_repository = ppe_repository
+        self.zone_repository = zone_repository
+        self.behavior_repository = behavior_repository
+        self.camera_repository = camera_repository
+        self.physical_zone_repository = physical_zone_repository
+        self.storage = storage
+
+    def list_incidents(
+        self,
+        *,
+        zone_id: int | None = None,
+        camera_id: int | None = None,
+        category: str | None = None,
+        severity: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 100,
+        warn_on_truncation: bool = True,
+    ) -> list[UnifiedIncident]:
+        """`warn_on_truncation=False` for feed reads ("give me the newest N"):
+        fetching `limit` rows per category and slicing the merge back to `limit`
+        yields exactly the correct newest-N set, so the dropped rows are the
+        point of the call, not a problem. Leave it on for aggregation reads,
+        where dropped rows silently undercount."""
+        normalized_limit = _validate_limit(limit)
+        # zone_id/camera_id are pushed into each category's query below, so
+        # their LIMIT applies to matching rows. `severity` can't be: it is
+        # derived per category (see incident_normalization) rather than stored,
+        # so it still has to be applied to fetched rows. Scanning only
+        # `normalized_limit` rows would then return a short list whenever the
+        # newest rows aren't the severity being asked for, so a severity read
+        # scans up to the same cap the analytics aggregation already uses and
+        # slices afterwards.
+        fetch_limit = (
+            normalized_limit if severity is None else settings.ANALYTICS_LIMIT
+        )
+        # Per-call caches: dedup camera/zone lookups across rows sharing the
+        # same camera, without persisting stale data across separate calls.
+        camera_cache: dict[int, Camera | None] = {}
+        zone_cache: dict[int, PhysicalZone | None] = {}
+
+        incidents: list[UnifiedIncident] = []
+        if category is None or category == "ppe":
+            ppe_rows = self.ppe_repository.list_between(
+                date_from=date_from,
+                date_to=date_to,
+                limit=fetch_limit,
+                zone_id=zone_id,
+                camera_id=camera_id,
+            )
+            _warn_if_category_hit_limit(
+                "ppe",
+                len(ppe_rows),
+                fetch_limit,
+                date_from,
+                date_to,
+                enabled=warn_on_truncation,
+            )
+            for violation in ppe_rows:
+                incidents.append(
+                    self._ppe_to_unified(violation, camera_cache, zone_cache)
+                )
+        if category is None or category == "zone":
+            zone_rows = self.zone_repository.list_between(
+                date_from=date_from,
+                date_to=date_to,
+                limit=fetch_limit,
+                zone_id=zone_id,
+                camera_id=camera_id,
+            )
+            _warn_if_category_hit_limit(
+                "zone",
+                len(zone_rows),
+                fetch_limit,
+                date_from,
+                date_to,
+                enabled=warn_on_truncation,
+            )
+            for violation in zone_rows:
+                incidents.append(
+                    self._zone_to_unified(violation, camera_cache, zone_cache)
+                )
+        if category is None or category == "behavior":
+            behavior_rows = self.behavior_repository.list_between(
+                date_from=date_from,
+                date_to=date_to,
+                limit=fetch_limit,
+                zone_id=zone_id,
+                camera_id=camera_id,
+            )
+            _warn_if_category_hit_limit(
+                "behavior",
+                len(behavior_rows),
+                fetch_limit,
+                date_from,
+                date_to,
+                enabled=warn_on_truncation,
+            )
+            # Batch-fetch evidence for every row in one query instead of one
+            # get_evidence() round trip per incident (PERF_PLAN.md Tier 3.3).
+            evidence_by_incident = self.behavior_repository.get_evidence_for_incidents(
+                [_require_id(incident.id) for incident in behavior_rows]
+            )
+            for incident in behavior_rows:
+                incidents.append(
+                    self._behavior_to_unified(
+                        incident, camera_cache, zone_cache, evidence_by_incident
+                    )
+                )
+
+        if severity is not None:
+            incidents = [i for i in incidents if i.severity == severity]
+
+        incidents.sort(key=lambda i: i.timestamp, reverse=True)
+        if warn_on_truncation and len(incidents) > normalized_limit:
+            # The merged set across categories alone exceeds normalized_limit
+            # (independent of any single category hitting its own limit above)
+            # — the final slice below drops the oldest rows. Surface it instead
+            # of returning silently-wrong aggregates.
+            logger.warning(
+                "UnifiedIncidentService.list_incidents truncated %d merged row(s) "
+                "(limit=%d, date_from=%s, date_to=%s, zone_id=%s, category=%s) — "
+                "counts/aggregates over this range may undercount.",
+                len(incidents) - normalized_limit,
+                normalized_limit,
+                date_from,
+                date_to,
+                zone_id,
+                category,
+            )
+        return incidents[:normalized_limit]
+
+    def _ppe_to_unified(
+        self,
+        violation: PPEViolation,
+        camera_cache: dict[int, Camera | None],
+        zone_cache: dict[int, PhysicalZone | None],
+    ) -> UnifiedIncident:
+        camera = self._camera_for(violation.camera_id, camera_cache)
+        zone = self._zone_for(violation.area_zone_id, camera, zone_cache)
+        return UnifiedIncident(
+            id=_require_id(violation.id),
+            category="ppe",
+            type=ppe_type_label(violation.violation_type),
+            severity=normalize_ppe_severity(violation.violation_type),
+            timestamp=_ensure_tz(violation.occurred_at),
+            camera_id=violation.camera_id,
+            zone_id=zone.id if zone else None,
+            zone_name=zone.name if zone else UNASSIGNED_ZONE_NAME,
+            camera_label=_camera_label(camera, violation.source_key),
+            snapshot_url=self._local_snapshot_url(violation.snapshot_path),
+        )
+
+    def _zone_to_unified(
+        self,
+        violation: ZoneViolation,
+        camera_cache: dict[int, Camera | None],
+        zone_cache: dict[int, PhysicalZone | None],
+    ) -> UnifiedIncident:
+        camera = self._camera_for(violation.camera_id, camera_cache)
+        zone = self._zone_for(violation.area_zone_id, camera, zone_cache)
+        return UnifiedIncident(
+            id=_require_id(violation.id),
+            category="zone",
+            type=zone_type_label(violation.zone_type),
+            severity=normalize_zone_severity(violation.severity),
+            timestamp=_ensure_tz(violation.occurred_at),
+            camera_id=violation.camera_id,
+            zone_id=zone.id if zone else None,
+            zone_name=zone.name if zone else UNASSIGNED_ZONE_NAME,
+            camera_label=_camera_label(camera, violation.source_key),
+            snapshot_url=self._local_snapshot_url(violation.snapshot_path),
+        )
+
+    def _behavior_to_unified(
+        self,
+        incident: BehaviorIncident,
+        camera_cache: dict[int, Camera | None],
+        zone_cache: dict[int, PhysicalZone | None],
+        evidence_by_incident: dict[int, list[BehaviorEvidence]],
+    ) -> UnifiedIncident:
+        camera = self._camera_for(incident.camera_id, camera_cache)
+        zone = self._zone_for(incident.area_zone_id, camera, zone_cache)
+        incident_id = _require_id(incident.id)
+        newest_evidence = evidence_by_incident.get(incident_id, [])
+        object_key = newest_evidence[0].object_key if newest_evidence else None
+        return UnifiedIncident(
+            id=incident_id,
+            category="behavior",
+            type=behavior_type_label(incident.behavior_type),
+            severity=normalize_behavior_severity(incident.severity),
+            timestamp=_ensure_tz(incident.started_at),
+            camera_id=incident.camera_id,
+            zone_id=zone.id if zone else None,
+            zone_name=zone.name if zone else UNASSIGNED_ZONE_NAME,
+            camera_label=_camera_label(camera, incident.source_key),
+            snapshot_url=self._behavior_snapshot_url(object_key),
+        )
+
+    def _camera_for(
+        self,
+        camera_id: int | None,
+        camera_cache: dict[int, Camera | None],
+    ) -> Camera | None:
+        if camera_id is None:
+            return None
+        if camera_id not in camera_cache:
+            camera_cache[camera_id] = self.camera_repository.get_by_id(camera_id)
+        return camera_cache[camera_id]
+
+    def _zone_for(
+        self,
+        area_zone_id: int | None,
+        camera: Camera | None,
+        zone_cache: dict[int, PhysicalZone | None],
+    ) -> PhysicalZone | None:
+        """The zone stored on the incident wins; the camera's current home zone
+        is only a fallback for rows written before area_zone_id existed.
+
+        Reading the zone through the camera alone meant history moved whenever
+        the camera did — and deleting a camera (which SET NULLs camera_id)
+        dumped every incident it had ever recorded into "Unassigned"."""
+        zone_id = area_zone_id
+        if zone_id is None:
+            zone_id = camera.home_zone_id if camera is not None else None
+        if zone_id is None:
+            return None
+        if zone_id not in zone_cache:
+            zone_cache[zone_id] = self.physical_zone_repository.get_by_id(zone_id)
+        return zone_cache[zone_id]
+
+    def _local_snapshot_url(self, snapshot_path: str | None) -> str | None:
+        """ppe/zone snapshots: MinIO URL when storage is configured, else a
+        servable local /snapshots/ path (matches ppe/zone violation services)."""
+        if snapshot_path is None:
+            return None
+        if self.storage is None:
+            return _to_local_snapshot_url(snapshot_path)
+        return self.storage.get_object_url(snapshot_path)
+
+    def _behavior_snapshot_url(self, object_key: str | None) -> str | None:
+        """behavior evidence only ever lives in MinIO; no local-path fallback
+        (matches BehaviorIncidentService._snapshot_url)."""
+        if object_key is None or self.storage is None:
+            return None
+        return self.storage.get_object_url(object_key)
+
+
+def _camera_label(camera: Camera | None, source_key: str | None) -> str:
+    if camera is not None:
+        return camera.name
+    if source_key:
+        return source_key
+    return "Unknown"
+
+
+def _ensure_tz(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _to_local_snapshot_url(snapshot_path: str) -> str:
+    if snapshot_path.startswith(("http://", "https://", "/")):
+        return snapshot_path
+    return f"/snapshots/{snapshot_path}"
+
+
+def _require_id(value: int | None) -> int:
+    if value is None:
+        raise ServiceValidationError("Persisted incident is missing an ID.")
+    return value
+
+
+def _validate_limit(limit: int) -> int:
+    # Upper bound covers both small feed reads (~30-100) and analytics
+    # aggregation reads (configurable via settings.ANALYTICS_LIMIT — see its
+    # docstring). This service aggregates in Python rather than in SQL (see
+    # module docstring), so it isn't built for unbounded scale past this cap;
+    # list_incidents logs a warning when a call actually hits it.
+    if not 1 <= limit <= settings.ANALYTICS_LIMIT:
+        raise ServiceValidationError(f"limit must be between 1 and {settings.ANALYTICS_LIMIT}.")
+    return limit
+
+
+def _warn_if_category_hit_limit(
+    category: str,
+    row_count: int,
+    normalized_limit: int,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    *,
+    enabled: bool,
+) -> None:
+    # A category's list_between() call returning exactly `normalized_limit`
+    # rows means it was cut off by its own LIMIT — older rows within the range
+    # never made it into this call, independent of any truncation from
+    # merging categories together (see list_incidents' final-slice warning).
+    if not enabled or row_count < normalized_limit:
+        return
+    logger.warning(
+        "UnifiedIncidentService.list_incidents: '%s' category hit its limit "
+        "(%d rows, date_from=%s, date_to=%s) — older rows in this range were "
+        "dropped before merging; counts/aggregates over this range may undercount.",
+        category,
+        normalized_limit,
+        date_from,
+        date_to,
+    )
+
+
+def get_unified_incident_service(
+    session: Annotated[Session, Depends(get_session)],
+    storage: Annotated[EvidenceStorage, Depends(get_evidence_storage)],
+) -> UnifiedIncidentService:
+    return UnifiedIncidentService(
+        PPEViolationRepository(session),
+        ZoneViolationRepository(session),
+        BehaviorIncidentRepository(session),
+        CameraRepository(session),
+        PhysicalZoneRepository(session),
+        storage,
+    )

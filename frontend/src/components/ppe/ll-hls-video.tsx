@@ -1,0 +1,282 @@
+"use client";
+
+import Hls from "hls.js";
+import { Info, Maximize2, Minimize2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { API_URL } from "@/lib/ppe-api";
+import { rtspToHlsUrl, type StreamTimeline } from "@/lib/stream-timeline";
+
+export function LlHlsVideo({
+  source,
+  className,
+  controls = false,
+  annotated = false,
+  aspectRatio = 16 / 9,
+  children,
+  onTimeline,
+  onVideoElement,
+  onSurfaceElement,
+  onPlaybackMetrics,
+}: {
+  source: string;
+  className?: string;
+  controls?: boolean;
+  annotated?: boolean;
+  aspectRatio?: number;
+  children?: ReactNode;
+  onTimeline?: (timeline: StreamTimeline) => void;
+  onVideoElement?: (element: HTMLVideoElement | null) => void;
+  onSurfaceElement?: (element: HTMLDivElement | null) => void;
+  onPlaybackMetrics?: (metrics: {
+    liveDelayMs: number | null;
+    sourceTimeMs: number | null;
+    rebufferCount: number;
+    droppedVideoFrames: number;
+  }) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const callbackRef = useRef(onTimeline);
+  const elementCallbackRef = useRef(onVideoElement);
+  const metricsCallbackRef = useRef(onPlaybackMetrics);
+  const normalizedAspectRatio =
+    Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 16 / 9;
+  // Latest annotated still frame, shown by the browser until the player has
+  // decoded its first real frame. Without it the element is a black
+  // rectangle for however long HLS startup takes — which on a cold stream
+  // is several seconds of manifest retries. Only for live (annotated)
+  // sources; an uploaded-file <video> has its own first frame to show.
+  // 404s harmlessly when the stream isn't running, leaving the old black
+  // background, so this can never regress the previous behaviour.
+  const posterUrl = annotated
+    ? `${API_URL}/stream-snapshot?video_name=${encodeURIComponent(source)}`
+    : undefined;
+  const fullscreenStageStyle = isFullscreen
+    ? {
+        width: `min(100vw, ${normalizedAspectRatio * 100}vh)`,
+        height: `min(100vh, ${100 / normalizedAspectRatio}vw)`,
+      }
+    : undefined;
+
+  useEffect(() => {
+    callbackRef.current = onTimeline;
+    elementCallbackRef.current = onVideoElement;
+    metricsCallbackRef.current = onPlaybackMetrics;
+  }, [onPlaybackMetrics, onTimeline, onVideoElement]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === playerRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    elementCallbackRef.current?.(video);
+    const playlist = rtspToHlsUrl(source, annotated);
+    let retryTimer = 0;
+    let resumeTimer = 0;
+    let disposed = false;
+    // The annotated HLS path only exists once the backend's compositor has
+    // pushed its first segments into mediamtx, so on a fresh stream the
+    // manifest 404s for a moment and hls.js reports a fatal NETWORK_ERROR.
+    // Retry quickly at first (the stream usually appears within a few
+    // hundred ms) and back off toward RETRY_MAX_MS if it really is missing —
+    // a flat delay here meant a stream that became ready 50ms after a failed
+    // probe still showed a black player until the next attempt.
+    const RETRY_MIN_MS = 150;
+    const RETRY_MAX_MS = 1000;
+    let retryDelay = RETRY_MIN_MS;
+    const canPlayHere = () =>
+      !document.hidden &&
+      (!document.fullscreenElement ||
+        document.fullscreenElement === playerRef.current);
+    const resumePlayback = () => {
+      window.clearTimeout(resumeTimer);
+      resumeTimer = window.setTimeout(() => {
+        if (!disposed && canPlayHere() && video.paused) {
+          playSafely(video);
+        }
+      }, 100);
+    };
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        lowLatencyMode: true,
+        liveSyncDuration: 2,
+        liveMaxLatencyDuration: 3,
+        maxLiveSyncPlaybackRate: 1.05,
+        backBufferLength: 10,
+      });
+      hlsRef.current = hls;
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(playlist));
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        window.clearTimeout(retryTimer);
+        retryDelay = RETRY_MIN_MS;
+        resumePlayback();
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          window.clearTimeout(retryTimer);
+          const delay = retryDelay;
+          retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+          retryTimer = window.setTimeout(() => {
+            if (disposed) return;
+            hls.loadSource(playlist);
+            hls.startLoad();
+          }, delay);
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          hls.destroy();
+        }
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = playlist;
+      resumePlayback();
+    }
+
+    let frameRequest = 0;
+    let rebufferCount = 0;
+    const countRebuffer = () => {
+      rebufferCount += 1;
+    };
+    video.addEventListener("waiting", countRebuffer);
+    video.addEventListener("stalled", countRebuffer);
+    video.addEventListener("canplay", resumePlayback);
+    document.addEventListener("visibilitychange", resumePlayback);
+    document.addEventListener("fullscreenchange", resumePlayback);
+    const metricsTimer = window.setInterval(() => {
+      const playingDate = hlsRef.current?.playingDate ?? null;
+      const quality = video.getVideoPlaybackQuality?.();
+      metricsCallbackRef.current?.({
+        liveDelayMs: Number.isFinite(hlsRef.current?.latency)
+          ? (hlsRef.current?.latency ?? 0) * 1000
+          : null,
+        sourceTimeMs: playingDate?.getTime() ?? null,
+        rebufferCount,
+        droppedVideoFrames: quality?.droppedVideoFrames ?? 0,
+      });
+    }, 1000);
+    const updateTimeline: VideoFrameRequestCallback = (_now, metadata) => {
+      const playingDate = hlsRef.current?.playingDate ?? null;
+      callbackRef.current?.({
+        streamEpoch: null,
+        sourceTimeMs: playingDate?.getTime() ?? null,
+        mediaTimeSeconds: metadata.mediaTime,
+      });
+      frameRequest = video.requestVideoFrameCallback(updateTimeline);
+    };
+    if ("requestVideoFrameCallback" in video) {
+      frameRequest = video.requestVideoFrameCallback(updateTimeline);
+    }
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(retryTimer);
+      window.clearTimeout(resumeTimer);
+      if (frameRequest) video.cancelVideoFrameCallback(frameRequest);
+      window.clearInterval(metricsTimer);
+      video.removeEventListener("waiting", countRebuffer);
+      video.removeEventListener("stalled", countRebuffer);
+      video.removeEventListener("canplay", resumePlayback);
+      document.removeEventListener("visibilitychange", resumePlayback);
+      document.removeEventListener("fullscreenchange", resumePlayback);
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+      video.removeAttribute("src");
+      video.load();
+      elementCallbackRef.current?.(null);
+    };
+  }, [annotated, source]);
+
+  const toggleFullscreen = async () => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (document.fullscreenElement === player) {
+      await document.exitFullscreen();
+    } else {
+      await player.requestFullscreen();
+    }
+  };
+
+  return (
+    <div
+      ref={playerRef}
+      className="group/video absolute inset-0 flex items-center justify-center bg-black"
+    >
+      <div
+        ref={onSurfaceElement}
+        className={`relative overflow-hidden bg-black ${isFullscreen ? "" : "h-full w-full"}`}
+        style={fullscreenStageStyle}
+      >
+        <video
+          ref={videoRef}
+          className={className}
+          controls={controls}
+          poster={posterUrl}
+          muted
+          autoPlay
+          playsInline
+        />
+        {children}
+        {annotated && (
+          // Discloses that the footage itself is synthetic demo content, not
+          // real De Heus factory video — the live streams in this app are
+          // looped demo clips pushed into mediamtx (see
+          // scripts/publish-rtsp.ps1), not actual factory cameras. Non-live
+          // playback (e.g. an uploaded file reviewed in <video>, which does
+          // not use this component) correctly never shows this badge. Not
+          // pointer-events-none: the tooltip needs hover to fire, and this
+          // corner is otherwise empty in both matrix and single view.
+          <div
+            className="absolute bottom-3 left-3 z-20 flex items-center gap-1 rounded-md border border-white/10 bg-slate-950/75 px-2 py-1 text-xs font-medium text-slate-200 backdrop-blur"
+            title="This footage is AI-generated for demonstration purposes only and does not depict real De Heus factory video or incidents."
+            aria-label="This footage is AI-generated for demonstration purposes only and does not depict real De Heus factory video or incidents."
+          >
+            <Info className="size-3" aria-hidden="true" />
+            AI-generated demo footage
+          </div>
+        )}
+        <button
+          type="button"
+          title={isFullscreen ? "Thu nhỏ video" : "Xem toàn màn hình"}
+          aria-label={isFullscreen ? "Thu nhỏ video" : "Xem toàn màn hình"}
+          onClick={(event) => {
+            event.stopPropagation();
+            void toggleFullscreen();
+          }}
+          className="absolute bottom-3 right-3 z-30 rounded-md border border-white/20 bg-slate-950/75 p-2 text-white shadow-lg backdrop-blur transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+        >
+          {isFullscreen ? (
+            <Minimize2 className="size-4" />
+          ) : (
+            <Maximize2 className="size-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function playSafely(video: HTMLVideoElement): void {
+  void video.play().catch((error: unknown) => {
+    const name =
+      error instanceof DOMException
+        ? error.name
+        : typeof error === "object" && error !== null && "name" in error
+          ? String(error.name)
+          : "";
+    if (name === "AbortError" || name === "NotAllowedError") return;
+    console.error("Video playback failed", error);
+  });
+}

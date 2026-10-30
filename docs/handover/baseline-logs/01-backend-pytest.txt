@@ -1,0 +1,706 @@
+# NOTE: the database password that appeared in psycopg connection tracebacks has been
+# replaced with <REDACTED>. No other edit was made to this output.
+
+........................................................................ [ 17%]
+........................................................................ [ 34%]
+........................................................................ [ 51%]
+........................................................................ [ 68%]
+...............F.F.FF...................FFF...................F......... [ 85%]
+......F.......................F....F..........................           [100%]
+================================== FAILURES ===================================
+_______________ TestDeriveZonePolygon.test_buffer_expands_bbox ________________
+
+self = <test_auto_zone.TestDeriveZonePolygon object at 0x000002834B467E50>
+
+    def test_buffer_expands_bbox(self):
+        # 40×40 box at (80,80)–(120,120) in a 400×300 frame, buffer=0.2
+        # pad_x = 40*0.2 = 8  \u2192  ex1 = 72/400 = 0.18,  ex2 = 128/400 = 0.32
+        # pad_y = 40*0.2 = 8  \u2192  ey1 = 72/300,          ey2 = 128/300
+        poly = derive_zone_polygon((80.0, 80.0, 120.0, 120.0), 400, 300, 0.2)
+>       assert poly[0] == pytest.approx({"x": 72 / 400, "y": 72 / 300})
+E       AssertionError: assert {'x': 0.05, 'y': 0.4} == approx({'x': ...24 ± 2.4e-07})
+E         
+E         comparison failed. Mismatched elements: 2 / 2:
+E         Max absolute difference: 0.16000000000000003
+E         Max relative difference: 0.7222222222222223
+E         Index | Obtained | Expected      
+E         x     | 0.05     | 0.18 ± 1.8e-07
+E         y     | 0.4      | 0.24 ± 2.4e-07
+
+tests\test_auto_zone.py:32: AssertionError
+____________ TestDeriveZonePolygon.test_clamp_at_top_left_boundary ____________
+
+self = <test_auto_zone.TestDeriveZonePolygon object at 0x0000028309EC5750>
+
+    def test_clamp_at_top_left_boundary(self):
+        # Box touching top-left corner; buffer would produce negative pixel coords
+        poly = derive_zone_polygon((0.0, 0.0, 50.0, 50.0), 100, 100, 0.5)
+        assert poly[0]["x"] == pytest.approx(0.0)
+>       assert poly[0]["y"] == pytest.approx(0.0)
+E       assert 0.5 == 0.0 ± 1.0e-12
+E         
+E         comparison failed
+E         Obtained: 0.5
+E         Expected: 0.0 ± 1.0e-12
+
+tests\test_auto_zone.py:48: AssertionError
+_______________ TestDeriveZonePolygon.test_tl_tr_br_bl_ordering _______________
+
+self = <test_auto_zone.TestDeriveZonePolygon object at 0x0000028309EC6310>
+
+    def test_tl_tr_br_bl_ordering(self):
+        poly = derive_zone_polygon((40.0, 30.0, 80.0, 70.0), 200, 200, 0.0)
+        tl, tr, br, bl = poly
+        assert tl["x"] < tr["x"]   # left < right (top edge)
+        assert bl["x"] < br["x"]   # left < right (bottom edge)
+>       assert tl["y"] < bl["y"]   # top < bottom (left edge)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 0.35 < 0.35
+
+tests\test_auto_zone.py:61: AssertionError
+________ TestDeriveZonePolygon.test_zero_buffer_equals_normalized_bbox ________
+
+self = <test_auto_zone.TestDeriveZonePolygon object at 0x0000028309EC68D0>
+
+    def test_zero_buffer_equals_normalized_bbox(self):
+        poly = derive_zone_polygon((20.0, 30.0, 80.0, 70.0), 100, 100, 0.0)
+>       assert poly[0] == pytest.approx({"x": 0.20, "y": 0.30})
+E       AssertionError: assert {'x': 0.2, 'y': 0.7} == approx({'x': ....3 ± 3.0e-07})
+E         
+E         comparison failed. Mismatched elements: 1 / 2:
+E         Max absolute difference: 0.39999999999999997
+E         Max relative difference: 1.3333333333333333
+E         Index | Obtained | Expected     
+E         y     | 0.7      | 0.3 ± 3.0e-07
+
+tests\test_auto_zone.py:66: AssertionError
+_______________ test_pipeline_emits_exactly_one_zone_suggestion _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002837F8BA7D0>
+
+    def test_pipeline_emits_exactly_one_zone_suggestion(monkeypatch):
+        """3 frames each containing the same stationary sign \u2192 exactly 1 zone_suggestion."""
+        # fps from _video_metadata is 10.0, so 0.1s \u2192 1 frame of stationarity required.
+        monkeypatch.setattr(settings, "AUTO_ZONE_STATIONARY_SECONDS", 0.1)
+        monkeypatch.setattr(settings, "SIGN_PASS_FRAME_INTERVAL", 1)
+        monkeypatch.setattr(settings, "SIGN_CONFIDENCE_THRESHOLD", 0.5)
+    
+        frame = np.zeros((_FRAME_H, _FRAME_W, 3), dtype=np.uint8)
+        monkeypatch.setattr(video_pipeline, "_video_metadata", lambda _: (10.0, 3))
+        monkeypatch.setattr(video_pipeline, "_extract_result_boxes", lambda _r: ([], [], []))
+        monkeypatch.setattr(video_pipeline, "load_zones", lambda _: [])
+    
+        detector = _make_detector(_FakePPEModel(frame, 3), _FakeSignModel())
+    
+>       events = list(
+            detector._real_video_pipeline(
+                "test.mp4", "test.mp4", stride=1, enable_ppe=False, enable_zone=False
+            )
+        )
+E       TypeError: 'async_generator' object is not iterable
+
+tests\test_auto_zone.py:381: TypeError
+________________ test_pipeline_does_not_emit_suggestion_twice _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000283809233D0>
+
+    def test_pipeline_does_not_emit_suggestion_twice(monkeypatch):
+        """6 frames with same stationary sign \u2192 still only 1 zone_suggestion (emit is terminal)."""
+        monkeypatch.setattr(settings, "AUTO_ZONE_STATIONARY_SECONDS", 0.1)
+        monkeypatch.setattr(settings, "SIGN_PASS_FRAME_INTERVAL", 1)
+        monkeypatch.setattr(settings, "SIGN_CONFIDENCE_THRESHOLD", 0.5)
+    
+        frame = np.zeros((_FRAME_H, _FRAME_W, 3), dtype=np.uint8)
+        monkeypatch.setattr(video_pipeline, "_video_metadata", lambda _: (10.0, 6))
+        monkeypatch.setattr(video_pipeline, "_extract_result_boxes", lambda _r: ([], [], []))
+        monkeypatch.setattr(video_pipeline, "load_zones", lambda _: [])
+    
+        detector = _make_detector(_FakePPEModel(frame, 6), _FakeSignModel())
+    
+>       events = list(
+            detector._real_video_pipeline(
+                "test.mp4", "test.mp4", stride=1, enable_ppe=False, enable_zone=False
+            )
+        )
+E       TypeError: 'async_generator' object is not iterable
+
+tests\test_auto_zone.py:411: TypeError
+______________ test_accepted_polygon_contains_person_foot_point _______________
+
+    def test_accepted_polygon_contains_person_foot_point():
+        """
+        The polygon produced by derive_zone_polygon for _SIGN_BBOX must pass
+        check_zone_incursion for a person whose foot-point is geometrically inside it.
+        Confirms the auto-zone coordinate system is consistent with zone_service.
+        """
+        poly_norm = derive_zone_polygon(_SIGN_BBOX, _FRAME_W, _FRAME_H, settings.AUTO_ZONE_BUFFER_RATIO)
+        poly_scaled = [(pt["x"] * COORD_SCALE, pt["y"] * COORD_SCALE) for pt in poly_norm]
+    
+        zone = ZoneViolationRecord(
+            camera_zone_view_id=99,
+            physical_zone_id=99,
+            zone_name="Auto-Suggested",
+            zone_type="RESTRICTED",
+            poly=poly_scaled,
+            threshold=0.0,
+        )
+    
+        # Person centred at x=300, foot at y=350 (both within the buffered bbox)
+        person = PersonResult(
+            person_id=1,
+            track_id=None,
+            bbox=BoundingBox(x1=200.0, y1=100.0, x2=400.0, y2=350.0),
+            confidence=0.9,
+            equipment=[
+                EquipmentStatus(label="Helmet", status="compliant"),
+                EquipmentStatus(label="Vest", status="compliant"),
+            ],
+            compliant=True,
+        )
+    
+        foot = get_person_foot_point(person, _FRAME_W, _FRAME_H)
+        incursions = check_zone_incursion([zone], foot)
+    
+>       assert len(incursions) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests\test_auto_zone.py:456: AssertionError
+___ test_primary_behavior_classifier_is_extra_trees_with_configured_threads ___
+
+    def test_primary_behavior_classifier_is_extra_trees_with_configured_threads():
+        detector = FallDetector()
+        classifier = detector._ensure_behavior_model()
+    
+>       assert type(classifier).__name__ == "ExtraTreesClassifier"
+E       AssertionError: assert 'XGBClassifier' == 'ExtraTreesClassifier'
+E         
+E         - ExtraTreesClassifier
+E         + XGBClassifier
+
+tests\test_fall_detector.py:42: AssertionError
+________________ test_existing_incident_title_is_not_upgraded _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002839EB2E1D0>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x000002839EB2EB50>
+
+    def test_existing_incident_title_is_not_upgraded(monkeypatch, caplog):
+        caplog.set_level(logging.INFO, logger=video_pipeline.logger.name)
+        saved_reports: list[ViolationReport] = []
+        monkeypatch.setattr(video_pipeline, "_save_violation_snapshot", lambda **_: "snapshot.jpg")
+    
+        def fake_save_violation(**kwargs):
+            report = ViolationReport(
+                id=len(saved_reports) + 1,
+                timestamp=kwargs["timestamp"],
+                violation_type=kwargs["violation_type"],
+                details=kwargs["details"],
+                snapshot_url=kwargs["snapshot_filename"],
+                video_name=kwargs["video_name"],
+                frame_index=kwargs["frame_index"],
+                track_id=kwargs["track_id"],
+            )
+            saved_reports.append(report)
+            return report
+    
+        monkeypatch.setattr(video_pipeline, "save_violation", fake_save_violation)
+    
+        cases: list[ppe.ViolationCase] = []
+        aspect_ratios: list[float] = []
+        first_worker = ppe.WorkerState(
+            track_ids={42},
+            first_frame=0,
+            last_frame=10,
+            last_bbox=_person(("Vest",)).bbox,
+            recent_bboxes=[],
+        )
+        second_worker = ppe.WorkerState(
+            track_ids={42},
+            first_frame=0,
+            last_frame=20,
+            last_bbox=_person(("Helmet", "Vest")).bbox,
+            recent_bboxes=[],
+        )
+    
+        ppe._record_violation_case(
+            cases=cases,
+            frame=None,
+            person=_person(("Vest",)),
+            worker=first_worker,
+            missing=["Vest"],
+            video_name="factory.mp4",
+            frame_index=10,
+            confirmed_aspect_ratios=aspect_ratios,
+        )
+        ppe._record_violation_case(
+            cases=cases,
+            frame=None,
+            person=_person(("Helmet", "Vest")),
+            worker=second_worker,
+            missing=["Helmet", "Vest"],
+            video_name="factory.mp4",
+            frame_index=20,
+            confirmed_aspect_ratios=aspect_ratios,
+        )
+    
+        assert len(saved_reports) == 1
+        assert len(cases) == 1
+        assert cases[0].report.violation_type == "missing_vest"
+        assert aspect_ratios == [2.5, 2.5]
+>       assert "action=create" in caplog.text
+E       AssertionError: assert 'action=create' in ''
+E        +  where '' = <_pytest.logging.LogCaptureFixture object at 0x000002839EB2EB50>.text
+
+tests\test_incident_diagnostics.py:90: AssertionError
+________ test_stream_health_reports_rolling_percentiles_and_event_rate ________
+
+    def test_stream_health_reports_rolling_percentiles_and_event_rate():
+        clear_stream_health()
+        source = "rtsp://camera/line-a"
+        for value in (10.0, 20.0, 30.0, 40.0):
+            observe_stream_timing(source, "ppe_compute", value)
+        mark_stream_event(source, "preview_sent")
+        mark_stream_event(source, "preview_sent")
+    
+        snapshot = stream_health_snapshot()[0]
+        timing = snapshot["timings"]["ppe_compute"]
+    
+        assert timing["samples"] == 4
+        assert timing["last_ms"] == 40.0
+        assert timing["mean_ms"] == 25.0
+        assert timing["p50_ms"] == 25.0
+        assert timing["p95_ms"] == 38.5
+>       assert snapshot["rates_fps"]["preview_sent"] > 0
+E       assert 0.0 > 0
+
+tests\test_stream_health.py:64: AssertionError
+______________ test_mock_video_tracking_overlay_respects_stride _______________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002837C1CA8D0>
+engine = Engine(postgresql+psycopg://safety_user:***@localhost:5433/safety_monitoring)
+connection = None, _has_events = None, _allow_revalidate = True
+_allow_autobegin = True
+
+    def __init__(
+        self,
+        engine: Engine,
+        connection: Optional[PoolProxiedConnection] = None,
+        _has_events: Optional[bool] = None,
+        _allow_revalidate: bool = True,
+        _allow_autobegin: bool = True,
+    ):
+        """Construct a new Connection."""
+        self.engine = engine
+        self.dialect = dialect = engine.dialect
+    
+        if connection is None:
+            try:
+>               self._dbapi_connection = engine.raw_connection()
+                                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:144: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:3319: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\impl.py:178: in _do_get
+    with util.safe_reraise():
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\pool\impl.py:176: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:389: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:674: in __init__
+    self.__connect()
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:900: in __connect
+    with util.safe_reraise():
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:896: in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\create.py:667: in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:630: in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'psycopg.Connection'>
+conninfo = 'host=localhost dbname=safety_monitoring user=safety_user password=<REDACTED> port=5433 connect_timeout=5 hostaddr=127.0.0.1'
+autocommit = False, prepare_threshold = 5
+context = <psycopg.adapt.AdaptersMap object at 0x000002837C0BF590>
+row_factory = None, cursor_factory = None
+kwargs = {'host': 'localhost', 'dbname': 'safety_monitoring', 'user': 'safety_user', 'password': '<REDACTED>', ...}
+
+    @classmethod
+    def connect(
+        cls,
+        conninfo: str = "",
+        *,
+        autocommit: bool = False,
+        prepare_threshold: int | None = 5,
+        context: AdaptContext | None = None,
+        row_factory: RowFactory[Row] | None = None,
+        cursor_factory: type[Cursor[Row]] | None = None,
+        **kwargs: ConnParam,
+    ) -> Self:
+        """
+        Connect to a database server and return a new `Connection` instance.
+        """
+    
+        params = cls._get_connection_params(conninfo, **kwargs)
+        timeout = timeout_from_conninfo(params)
+        rv = None
+        attempts = conninfo_attempts(params)
+        conn_errors: list[tuple[e.Error, str]] = []
+        for attempt in attempts:
+            tdescr = (attempt.get("host"), attempt.get("port"), attempt.get("hostaddr"))
+            descr = "host: %r, port: %r, hostaddr: %r" % tdescr
+            logger.debug("connection attempt: %s", descr)
+            try:
+                conninfo = make_conninfo("", **attempt)
+                gen = cls._connect_gen(conninfo, timeout=timeout)
+                rv = waiting.wait_conn(gen, interval=_WAIT_INTERVAL)
+            except e.Error as ex:
+                logger.debug("connection failed: %s: %s", descr, str(ex))
+                conn_errors.append((ex, descr))
+            except e._NO_TRACEBACK as ex:
+                raise ex.with_traceback(None)
+            else:
+                logger.debug("connection succeeded: %s", descr)
+                break
+    
+        if not rv:
+            last_ex = conn_errors[-1][0]
+            if len(conn_errors) == 1:
+                raise last_ex.with_traceback(None)
+    
+            # Create a new exception with the same type as the last one, containing
+            # all attempt errors while preserving backward compatibility.
+            lines = [str(last_ex)]
+            lines.append("Multiple connection attempts failed. All failures were:")
+            lines.extend((f"- {descr}: {error}" for error, descr in conn_errors))
+            new_ex = type(last_ex)("\n".join(lines), pgconn=last_ex.pgconn)
+>           raise new_ex.with_traceback(None)
+E           psycopg.errors.ConnectionTimeout: connection timeout expired
+E           Multiple connection attempts failed. All failures were:
+E           - host: 'localhost', port: 5433, hostaddr: '::1': connection timeout expired
+E           - host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection timeout expired
+
+.venv\Lib\site-packages\psycopg\connection.py:130: ConnectionTimeout
+
+The above exception was the direct cause of the following exception:
+
+self = <app.repositories.camera_zone_view_repository.CameraZoneViewRepository object at 0x0000028345404250>
+source_key = 'factory.mp4'
+
+    def get_active_by_camera_source_key(self, source_key: str) -> list[CameraZoneView]:
+        try:
+            statement = (
+                select(CameraZoneView)
+                .join(Camera, CameraZoneView.camera_id == Camera.id)
+                .join(
+                    PhysicalZone,
+                    CameraZoneView.physical_zone_id == PhysicalZone.id,
+                )
+                .where(
+                    Camera.source_key == source_key,
+                    Camera.is_active.is_(True),
+                    CameraZoneView.is_active.is_(True),
+                    PhysicalZone.is_active.is_(True),
+                )
+                .order_by(CameraZoneView.id)
+            )
+>           return list(self.session.exec(statement).all())
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\repositories\camera_zone_view_repository.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlmodel\orm\session.py:75: in exec
+    results = super().execute(
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:2261: in _execute_internal
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:2113: in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:1191: in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:3295: in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:146: in __init__
+    Connection._handle_dbapi_exception_noconnection(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2450: in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:144: in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:3319: in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:448: in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:1272: in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:712: in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\impl.py:178: in _do_get
+    with util.safe_reraise():
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\pool\impl.py:176: in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:389: in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:674: in __init__
+    self.__connect()
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:900: in __connect
+    with util.safe_reraise():
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\pool\base.py:896: in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\create.py:667: in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:630: in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'psycopg.Connection'>
+conninfo = 'host=localhost dbname=safety_monitoring user=safety_user password=<REDACTED> port=5433 connect_timeout=5 hostaddr=127.0.0.1'
+autocommit = False, prepare_threshold = 5
+context = <psycopg.adapt.AdaptersMap object at 0x000002837C0BF590>
+row_factory = None, cursor_factory = None
+kwargs = {'host': 'localhost', 'dbname': 'safety_monitoring', 'user': 'safety_user', 'password': '<REDACTED>', ...}
+
+    @classmethod
+    def connect(
+        cls,
+        conninfo: str = "",
+        *,
+        autocommit: bool = False,
+        prepare_threshold: int | None = 5,
+        context: AdaptContext | None = None,
+        row_factory: RowFactory[Row] | None = None,
+        cursor_factory: type[Cursor[Row]] | None = None,
+        **kwargs: ConnParam,
+    ) -> Self:
+        """
+        Connect to a database server and return a new `Connection` instance.
+        """
+    
+        params = cls._get_connection_params(conninfo, **kwargs)
+        timeout = timeout_from_conninfo(params)
+        rv = None
+        attempts = conninfo_attempts(params)
+        conn_errors: list[tuple[e.Error, str]] = []
+        for attempt in attempts:
+            tdescr = (attempt.get("host"), attempt.get("port"), attempt.get("hostaddr"))
+            descr = "host: %r, port: %r, hostaddr: %r" % tdescr
+            logger.debug("connection attempt: %s", descr)
+            try:
+                conninfo = make_conninfo("", **attempt)
+                gen = cls._connect_gen(conninfo, timeout=timeout)
+                rv = waiting.wait_conn(gen, interval=_WAIT_INTERVAL)
+            except e.Error as ex:
+                logger.debug("connection failed: %s: %s", descr, str(ex))
+                conn_errors.append((ex, descr))
+            except e._NO_TRACEBACK as ex:
+                raise ex.with_traceback(None)
+            else:
+                logger.debug("connection succeeded: %s", descr)
+                break
+    
+        if not rv:
+            last_ex = conn_errors[-1][0]
+            if len(conn_errors) == 1:
+                raise last_ex.with_traceback(None)
+    
+            # Create a new exception with the same type as the last one, containing
+            # all attempt errors while preserving backward compatibility.
+            lines = [str(last_ex)]
+            lines.append("Multiple connection attempts failed. All failures were:")
+            lines.extend((f"- {descr}: {error}" for error, descr in conn_errors))
+            new_ex = type(last_ex)("\n".join(lines), pgconn=last_ex.pgconn)
+>           raise new_ex.with_traceback(None)
+E           sqlalchemy.exc.OperationalError: (psycopg.errors.ConnectionTimeout) connection timeout expired
+E           Multiple connection attempts failed. All failures were:
+E           - host: 'localhost', port: 5433, hostaddr: '::1': connection timeout expired
+E           - host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection timeout expired
+E           (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\psycopg\connection.py:130: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002839EB61A10>
+
+    def test_mock_video_tracking_overlay_respects_stride(monkeypatch):
+        frames = [np.zeros((120, 200, 3), dtype=np.uint8) for _ in range(5)]
+    
+        class FakeCapture:
+            def __init__(self, _path):
+                self.frames = iter(frames)
+    
+            def isOpened(self):
+                return True
+    
+            def read(self):
+                try:
+                    return True, next(self.frames)
+                except StopIteration:
+                    return False, None
+    
+            def release(self):
+                return None
+    
+        monkeypatch.setattr(video_pipeline, "_video_metadata", lambda _path: (10.0, 5))
+        monkeypatch.setattr(ppe.settings, "VIDEO_FRAME_STRIDE", 2)
+        monkeypatch.setattr("cv2.VideoCapture", FakeCapture)
+    
+        detector = ppe.PPEDetector.__new__(ppe.PPEDetector)
+        detector._mock_predict = lambda _image: _compliant_response()
+    
+>       result = detector._mock_process_video("ignored.mp4", "factory.mp4")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_tracking_overlay.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\services\ppe\detector.py:498: in _mock_process_video
+    return video_pipeline.mock_process_video(
+app\services\video_pipeline\__init__.py:1278: in mock_process_video
+    zones = load_zones(video_name) if enable_zone else []
+            ^^^^^^^^^^^^^^^^^^^^^^
+app\services\zone_service.py:330: in load_zones
+    active_views = view_repository.get_active_by_camera_source_key(video_name)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <app.repositories.camera_zone_view_repository.CameraZoneViewRepository object at 0x0000028345404250>
+source_key = 'factory.mp4'
+
+    def get_active_by_camera_source_key(self, source_key: str) -> list[CameraZoneView]:
+        try:
+            statement = (
+                select(CameraZoneView)
+                .join(Camera, CameraZoneView.camera_id == Camera.id)
+                .join(
+                    PhysicalZone,
+                    CameraZoneView.physical_zone_id == PhysicalZone.id,
+                )
+                .where(
+                    Camera.source_key == source_key,
+                    Camera.is_active.is_(True),
+                    CameraZoneView.is_active.is_(True),
+                    PhysicalZone.is_active.is_(True),
+                )
+                .order_by(CameraZoneView.id)
+            )
+            return list(self.session.exec(statement).all())
+        except SQLAlchemyError as exc:
+            self.session.rollback()
+>           raise RepositoryError("Could not list active zone views.") from exc
+E           app.repositories.RepositoryError: Could not list active zone views.
+
+app\repositories\camera_zone_view_repository.py:93: RepositoryError
+============================== warnings summary ===============================
+app\core\config.py:9
+  C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\backend\app\core\config.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+.venv\Lib\site-packages\tensorrt_bindings\__init__.py:103
+.venv\Lib\site-packages\tensorrt_bindings\__init__.py:103
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+  C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\backend\.venv\Lib\site-packages\tensorrt_bindings\__init__.py:103: DeprecationWarning: Context managers for TensorRT types are deprecated. Memory will be freed automatically when the reference count reaches 0.
+    warnings.warn(
+
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+  C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\backend\app\main.py:73: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+  C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\backend\.venv\Lib\site-packages\fastapi\applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+tests/storage/test_local_paths.py::test_main_import_does_not_open_sqlite
+  C:\Users\ASUS\Desktop\Projects\PPE detector\de-heus-ppe-monitor\backend\app\main.py:87: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_fall_detector.py::test_primary_behavior_classifier_is_extra_trees_with_configured_threads
+  C:\Users\ASUS\scoop\apps\python311\current\Lib\pickle.py:1718: UserWarning: [09:54:35] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\gbm\../common/error_msg.h:83: If you are loading a serialized model (like pickle in Python, RDS in R) or
+  configuration generated by an older version of XGBoost, please export the model by calling
+  `Booster.save_model` from that version first, then load it back in current version. See:
+  
+      https://xgboost.readthedocs.io/en/stable/tutorials/saving_model.html
+  
+  for more details about differences between saving model and serializing.
+  
+    setstate(state)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_auto_zone.py::TestDeriveZonePolygon::test_buffer_expands_bbox
+FAILED tests/test_auto_zone.py::TestDeriveZonePolygon::test_clamp_at_top_left_boundary
+FAILED tests/test_auto_zone.py::TestDeriveZonePolygon::test_tl_tr_br_bl_ordering
+FAILED tests/test_auto_zone.py::TestDeriveZonePolygon::test_zero_buffer_equals_normalized_bbox
+FAILED tests/test_auto_zone.py::test_pipeline_emits_exactly_one_zone_suggestion
+FAILED tests/test_auto_zone.py::test_pipeline_does_not_emit_suggestion_twice
+FAILED tests/test_auto_zone.py::test_accepted_polygon_contains_person_foot_point
+FAILED tests/test_fall_detector.py::test_primary_behavior_classifier_is_extra_trees_with_configured_threads
+FAILED tests/test_incident_diagnostics.py::test_existing_incident_title_is_not_upgraded
+FAILED tests/test_stream_health.py::test_stream_health_reports_rolling_percentiles_and_event_rate
+FAILED tests/test_tracking_overlay.py::test_mock_video_tracking_overlay_respects_stride
+11 failed, 411 passed, 16 warnings in 34.32s
+EXIT=1

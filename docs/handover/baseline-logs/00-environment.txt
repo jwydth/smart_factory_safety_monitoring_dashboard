@@ -1,0 +1,18 @@
+# Environment capture
+date-utc: 2026-10-10T02:54:01Z
+git-head: 950e09cdffb1f4124dc59c6e06d10911749d7c23
+git-branch: handover/docs
+git-head-date: 2026-09-16T11:38:49+07:00
+git-head-subject: [STYLE] camera config: in CAMERA FEEDS page, in Configure cameras panel, rm 3D Blueprint Zone input field
+--- git status --porcelain ---
+?? docs/HANDOVER_PLAN_LITE.md
+?? docs/PRESENTATION_QA.md
+?? docs/handover/
+--- versions ---
+python(venv): Python 3.11.9
+pytest: pytest 9.1.1
+ruff: ruff 0.15.20
+node: v24.17.0
+npm: 11.13.0
+tsc: Version 5.9.3
+eslint: v9.39.4
