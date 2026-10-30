@@ -1,7 +1,7 @@
 """Realtime fall detection backed by the trained pose-behavior classifier.
 
 Unlike the former geometric heuristic, this module uses the same 60-frame
-feature contract and ``best_behavior_model.joblib`` classifier as the PPE
+feature contract and ``behavior.joblib`` classifier as the PPE
 labeling project.
 """
 

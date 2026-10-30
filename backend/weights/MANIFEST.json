@@ -3,10 +3,10 @@
   "generated": "2026-10-10",
   "generated_at_commit": "950e09c",
   "weights_dir": "backend/weights",
-  "note": "Weights are gitignored and are not part of a clone. Checksums were computed from the files in use on the development machine at the commit above; best_behavior_model.joblib was recovered from git history (see its source field). Verify with: python scripts/verify_weights.py",
+  "note": "Weights are gitignored and are not part of a clone. Checksums were computed from the files in use on the development machine at the commit above, except behavior.joblib, which is the final model supplied by the capstone team on 2026-10-30 (see its note field). Verify with: python scripts/verify_weights.py",
   "models": [
     {
-      "file": "ppe_v4.pt",
+      "file": "ppe.pt",
       "required": true,
       "purpose": "PPE compliance detection: locates people and the safety equipment they are or are not wearing.",
       "loaded_by": "MODEL_PATH",
@@ -32,7 +32,7 @@
       "source": "Trained from the dataset at ppe-detection/v2_pipeline/artifacts/20260826T062011Z_direct-final_yolo12n-factory-only_s42_027537d/dataset.yaml on the capstone team's training machine. Training data was synthetic. VERIFY: whether that artifact directory is archived anywhere De Heus can reach."
     },
     {
-      "file": "sign_model.pt",
+      "file": "sign.pt",
       "required": true,
       "purpose": "Safety-sign detection. Drives the automatic zone suggestions: a detected sign proposes a zone of the matching type.",
       "loaded_by": "SIGN_MODEL_PATH",
@@ -105,14 +105,15 @@
       "source": "A stock ImageNet classification checkpoint used as a ReID backbone. VERIFY: whether it is byte-identical to the published yolo11m-cls release."
     },
     {
-      "file": "best_behavior_model.joblib",
+      "file": "behavior.joblib",
       "required": true,
       "purpose": "Behavior classification from a 60-frame pose window: distinguishes normal movement from running and from falling.",
       "loaded_by": "FALL_BEHAVIOR_MODEL_PATH",
-      "size_bytes": 11510305,
-      "sha256": "e60d9e9b99f4a0e7f8e5866dac3ff3c7a73823390c74114c7adab8029675f2fd",
+      "size_bytes": 23122305,
+      "sha256": "50fb20ebdbd20ad5f1b9a91868bc4de6296ff9b1c35c85afb15193d426e532f1",
+      "note": "Final ExtraTrees model supplied by the capstone team on 2026-10-30; replaces the earlier best_behavior_model.joblib from commit de167f9 (sha256 e60d9e9b99f4a0e7f8e5866dac3ff3c7a73823390c74114c7adab8029675f2fd, 11,510,305 bytes).",
       "origin": "custom-trained for this project",
-      "trained": "VERIFY: training date unknown. The file entered git on 2026-08-05 in commit de167f9, which is the earliest date that can be evidenced.",
+      "trained": "VERIFY: training date unknown. Supplied by the capstone team on 2026-10-30; pickled with scikit-learn 1.9.0.",
       "model_type": "scikit-learn ExtraTreesClassifier",
       "framework": "scikit-learn (loaded with joblib)",
       "input_features": 141,
@@ -122,15 +123,15 @@
         "falling"
       ],
       "class_order_note": "predict_proba returns probabilities in this index order (0 others, 1 running, 2 falling); fall_detector.py unpacks them positionally, so the order is load-bearing.",
-      "obtain_from": "Delivered separately, outside this repository, by the member of the capstone team who also maintains the ppe_labeling labelling-tool documentation. De Heus contact: Ethan Phuc (Nguyen Trong Phuc), Information Technology, ethan.phuc@deheus.com. ALSO independently recoverable from this repository's git history: git show de167f9:backend/weights/best_behavior_model.joblib > backend/weights/best_behavior_model.joblib  (needs a clone with history, not --depth 1)",
-      "source": "RECOVERABLE FROM THIS REPOSITORY. Deleted from git in c7653a4, still present in history. Restore with: git show de167f9:backend/weights/best_behavior_model.joblib > backend/weights/best_behavior_model.joblib",
+      "obtain_from": "Delivered separately, outside this repository, by the member of the capstone team who also maintains the ppe_labeling labelling-tool documentation. De Heus contact: Ethan Phuc (Nguyen Trong Phuc), Information Technology, ethan.phuc@deheus.com. The final file exists only in that delivery, not in git. FALLBACK ONLY: an OLDER ExtraTrees version is in this repository's git history and can be restored with git show de167f9:backend/weights/best_behavior_model.joblib > backend/weights/behavior.joblib  (needs a clone with history, not --depth 1). It is not the final model and will not match the checksum above.",
+      "source": "Final file delivered out of band by the capstone team on 2026-10-30. An older version (500 trees, max_depth 18) was committed in de167f9 and deleted from git in c7653a4; it remains in history as a fallback only.",
       "confirmed_production_model": "ExtraTrees is the production classifier. Confirmed by the capstone team, and it is what the capstone report documents. Corroborated in code by the config.py default, its comment ('The current production artifact is an sklearn ExtraTreesClassifier'), and the assertion in tests/test_fall_detector.py. Note that the development machine's .env pointed at the superseded XGBoost behavior.joblib instead, so the capstone demo ran that model rather than this one; see the superseded section below."
     }
   ],
   "superseded": [
     {
       "file": "behavior.joblib",
-      "purpose": "An older behavior classifier, superseded by best_behavior_model.joblib.",
+      "purpose": "An older XGBoost behavior classifier. Its filename is now reused by the final ExtraTrees model above, so identify it by checksum and size, never by name.",
       "size_bytes": 5614835,
       "sha256": "37c798b39aa5b2f3b019979dace99f41a105edb2c17cd070d9d38bf064cb4aa6",
       "model_type": "XGBClassifier",
@@ -168,9 +169,9 @@
     },
     "files": [
       {
-        "file": "ppe_v4.engine",
-        "built_from": "ppe_v4.pt",
-        "loaded_by": "MODEL_PATH (set it to weights/ppe_v4.engine to use)",
+        "file": "ppe.engine",
+        "built_from": "ppe.pt",
+        "loaded_by": "MODEL_PATH (set it to weights/ppe.engine to use)",
         "size_bytes": 10291857,
         "sha256": "b4bd629ef08fc32350172bf0e287eff144fbcd6912192f57dc9174706674743f"
       },
@@ -183,15 +184,15 @@
         "note": "Built with a batch size matching BEHAVIOR_BATCH_MAX_SIZE; changing that setting requires a rebuild."
       },
       {
-        "file": "sign_model.engine",
-        "built_from": "sign_model.pt",
-        "loaded_by": "SIGN_MODEL_PATH (set it to weights/sign_model.engine to use)",
+        "file": "sign.engine",
+        "built_from": "sign.pt",
+        "loaded_by": "SIGN_MODEL_PATH (set it to weights/sign.engine to use)",
         "size_bytes": 8831714,
         "sha256": "9ce3a3fd8ad9a13b170ae9065796f16e39175c1cfc9316b0f243b966dad7ffaa"
       },
       {
-        "file": "ppe_v4.onnx",
-        "built_from": "ppe_v4.pt",
+        "file": "ppe.onnx",
+        "built_from": "ppe.pt",
         "size_bytes": 6183528,
         "sha256": "143503f3e386bad5d15dda599670d4418b1c8deda5556752faa76eac9f31e9d3",
         "note": "Export intermediate. Only needed to rebuild an engine without re-exporting from the .pt."
@@ -204,14 +205,14 @@
         "note": "Export intermediate."
       },
       {
-        "file": "sign_model.onnx",
-        "built_from": "sign_model.pt",
+        "file": "sign.onnx",
+        "built_from": "sign.pt",
         "size_bytes": 5058708,
         "sha256": "81e616248ebcee595b48fdf59418ab66aed0dae62b2dfe344d803fd2b2be2cfa",
         "note": "Export intermediate."
       }
     ],
     "obtain_from": "Delivered separately, outside this repository, by the member of the capstone team who also maintains the ppe_labeling labelling-tool documentation. De Heus contact: Ethan Phuc (Nguyen Trong Phuc), Information Technology, ethan.phuc@deheus.com",
-    "reference_configuration": "The capstone development and demo machine ran PPE, sign and pose inference from these engines, not from the .pt files: MODEL_PATH=weights/ppe_v4.engine, SIGN_MODEL_PATH=weights/sign_model.engine, FALL_MODEL_PATH=weights/pose.engine. Only FALL_REID_MODEL_PATH stayed at weights/reid.pt, because no reid engine is built. Any demonstrated performance was therefore TensorRT performance. Running from .pt is supported and was verified on a CPU-only clean install, but is slower."
+    "reference_configuration": "The capstone development and demo machine ran PPE, sign and pose inference from these engines, not from the .pt files: MODEL_PATH=weights/ppe.engine, SIGN_MODEL_PATH=weights/sign.engine, FALL_MODEL_PATH=weights/pose.engine. Only FALL_REID_MODEL_PATH stayed at weights/reid.pt, because no reid engine is built. Any demonstrated performance was therefore TensorRT performance. Running from .pt is supported and was verified on a CPU-only clean install, but is slower."
   }
 }

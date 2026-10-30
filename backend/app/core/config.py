@@ -7,7 +7,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    MODEL_PATH: str = "weights/ppe_v4.pt"
+    MODEL_PATH: str = "weights/ppe.pt"
     DATABASE_URL: str | None = None
     MINIO_ENDPOINT: str | None = None
     MINIO_ACCESS_KEY: str | None = None
@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "storage/uploads"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     # Sign-detection / auto-zone settings
-    SIGN_MODEL_PATH: str = "weights/sign_model.pt"
+    SIGN_MODEL_PATH: str = "weights/sign.pt"
     SIGN_CONFIDENCE_THRESHOLD: float = 0.35
     SIGN_CLASS_ZONE_MAP: dict[int, str] = {2: "RESTRICTED", 3: "SLIPPERY"}
     SIGN_CLASS_NAMES: dict[int, str] = {
@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     # Primary classifier: 141 transformed pose/motion features ->
     # others/running/falling. The current production artifact is an
     # sklearn ExtraTreesClassifier.
-    FALL_BEHAVIOR_MODEL_PATH: str = "weights/best_behavior_model.joblib"
+    FALL_BEHAVIOR_MODEL_PATH: str = "weights/behavior.joblib"
     FALL_REID_MODEL_PATH: str = "weights/reid.pt"
     FALL_PERSON_CONFIDENCE: float = 0.20
     FALL_BEHAVIOR_WINDOW_FRAMES: int = 60

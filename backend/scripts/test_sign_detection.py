@@ -6,7 +6,7 @@ Usage (run from the backend/ directory):
     python scripts/test_sign_detection.py path/to/image.jpg --conf 0.3
     python scripts/test_sign_detection.py path/to/image.jpg --out result.jpg
 
-The script loads sign_model.pt, runs inference on the supplied image, draws
+The script loads sign.pt, runs inference on the supplied image, draws
 bounding boxes + labels for every detected sign, and saves the annotated image
 next to the source file (or at --out if provided).
 """
@@ -94,8 +94,8 @@ def main() -> None:
     parser.add_argument("image", type=Path, help="Path to the input image")
     parser.add_argument(
         "--model", type=Path,
-        default=BACKEND_DIR / "weights" / "sign_model.pt",
-        help="Path to sign_model.pt (default: backend/weights/sign_model.pt)",
+        default=BACKEND_DIR / "weights" / "sign.pt",
+        help="Path to sign.pt (default: backend/weights/sign.pt)",
     )
     parser.add_argument(
         "--conf", type=float, default=0.35,

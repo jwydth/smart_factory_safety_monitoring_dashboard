@@ -7,7 +7,7 @@ Last updated: 2026-06-16
 
 ## What this feature does
 
-When a video is streamed, a second YOLO model (`sign_model.pt`) scans every N frames for safety signs (e.g. "No Thoroughfare", "Slippery"). When a sign is detected with enough confidence across multiple frames, a **zone suggestion** is emitted to the frontend as a dashed orange polygon placed on the floor below the sign. The user can:
+When a video is streamed, a second YOLO model (`sign.pt`) scans every N frames for safety signs (e.g. "No Thoroughfare", "Slippery"). When a sign is detected with enough confidence across multiple frames, a **zone suggestion** is emitted to the frontend as a dashed orange polygon placed on the floor below the sign. The user can:
 
 - **Accept** → zone is saved to DB and immediately enforced in the running pipeline (no restart needed)
 - **Dismiss** → suggestion is suppressed for the rest of the session
@@ -43,7 +43,7 @@ Accepted zones behave identically to hand-drawn zones: incursion is tracked via 
 ## New config settings (`app/core/config.py`)
 
 ```python
-SIGN_MODEL_PATH: str = "weights/sign_model.pt"       # path to the sign YOLO weights
+SIGN_MODEL_PATH: str = "weights/sign.pt"             # path to the sign YOLO weights
 SIGN_CONFIDENCE_THRESHOLD: float = 0.3               # min confidence to count a detection
 SIGN_CLASS_ZONE_MAP: dict[int, str] = {2: "RESTRICTED", 3: "RESTRICTED"}  # class → zone type
 SIGN_CLASS_NAMES: dict[int, str] = {2: "P004_NoThoroughfare", 3: "W011_Slippery"}
@@ -87,7 +87,7 @@ When the user clicks Accept:
 
 ## Runtime requirements
 
-- `sign_model.pt` must exist at `backend/weights/sign_model.pt` (or override `SIGN_MODEL_PATH` in `.env`). If missing, the feature is silently disabled and normal PPE detection continues.
+- `sign.pt` must exist at `backend/weights/sign.pt` (or override `SIGN_MODEL_PATH` in `.env`). If missing, the feature is silently disabled and normal PPE detection continues.
 - PyTorch with CUDA support (`torch==2.12.0+cu126`) is installed. RTX 3050 confirmed working.
 - `.env` has `VIDEO_FRAME_STRIDE=2` set for better GPU throughput.
 
@@ -171,7 +171,7 @@ VIDEO_ZONE_REENTRY_GAP_SECONDS: float = 1.0   # tracker-drop gap treated as zone
 
 | File | Purpose |
 |---|---|
-| `backend/scripts/test_sign_detection.py` | Stand-alone script to test `sign_model.pt` on a single image — draws bounding boxes, prints class/confidence/coords, saves annotated result |
+| `backend/scripts/test_sign_detection.py` | Stand-alone script to test `sign.pt` on a single image — draws bounding boxes, prints class/confidence/coords, saves annotated result |
 
 Usage:
 ```bash

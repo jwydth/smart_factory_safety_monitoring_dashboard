@@ -137,9 +137,9 @@ def main() -> int:
         print("\nAll required weights are present and match the manifest.")
         return 0
 
-    # Say what to do about each failure, not just that it happened. The
-    # behavior model is recoverable from git history; the others are not, and
-    # the difference decides whether someone needs to contact anybody.
+    # Say what to do about each failure, not just that it happened. Every
+    # required model is delivered out of band; only an older fallback of the
+    # behavior model is in git history, so obtain_from says whom to contact.
     print(f"\n{len(failures)} required model(s) need attention:\n")
     for failure in failures:
         entry = failure["entry"]

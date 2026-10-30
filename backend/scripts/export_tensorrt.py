@@ -31,9 +31,9 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 # behavior scheduler pads every CUDA batch to that size. Batch 1 (the upload
 # path) still fits inside the profile.
 JOBS = {
-    "ppe": ("weights/ppe_v4.pt", 1),
+    "ppe": ("weights/ppe.pt", 1),
     "pose": ("weights/pose.pt", 4),
-    "sign": ("weights/sign_model.pt", 1),
+    "sign": ("weights/sign.pt", 1),
 }
 IMGSZ = 640
 OPT_HW = (384, 640)

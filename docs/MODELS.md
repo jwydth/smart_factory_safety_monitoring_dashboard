@@ -16,11 +16,11 @@ them that way.** Its `backend/.env` pointed at pre-built TensorRT engines:
 
 | Model | `.pt` (default) | What the demo machine actually loaded |
 | --- | --- | --- |
-| PPE | `weights/ppe_v4.pt` | **`weights/ppe_v4.engine`** |
-| Signs | `weights/sign_model.pt` | **`weights/sign_model.engine`** |
+| PPE | `weights/ppe.pt` | **`weights/ppe.engine`** |
+| Signs | `weights/sign.pt` | **`weights/sign.engine`** |
 | Pose | `weights/pose.pt` | **`weights/pose.engine`** |
 | Re-identification | `weights/reid.pt` | `weights/reid.pt` — no engine exists for it |
-| Behavior | `weights/best_behavior_model.joblib` | a joblib classifier; TensorRT does not apply |
+| Behavior | `weights/behavior.joblib` | a joblib classifier; TensorRT does not apply |
 
 Two consequences worth stating plainly:
 
@@ -57,7 +57,7 @@ real footage is the only way to establish it.
 
 ---
 
-## PPE detection — `ppe_v4.pt`
+## PPE detection — `ppe.pt`
 
 | | |
 | --- | --- |
@@ -81,7 +81,7 @@ PPE they are genuinely missing.
 **Limits.** Four classes only: no gloves, boots, eye or hearing protection. The class
 list is baked into the weights, so adding an item means retraining, not configuration.
 
-## Safety-sign detection — `sign_model.pt`
+## Safety-sign detection — `sign.pt`
 
 | | |
 | --- | --- |
@@ -128,7 +128,7 @@ therefore **replaceable**: any COCO-pose model producing 17 keypoints should wor
 `VERIFY:` whether it is byte-identical to a published Ultralytics release. Confirming
 that needs a download and comparison, which was not done.
 
-## Behavior classification — `best_behavior_model.joblib`
+## Behavior classification — `behavior.joblib`
 
 | | |
 | --- | --- |
@@ -137,7 +137,7 @@ that needs a download and comparison, which was not done.
 | Classes | `others`, `running`, `falling` — **in that index order** |
 | Architecture | scikit-learn `ExtraTreesClassifier` |
 | Input | 141 transformed pose/motion features over a 60-frame window |
-| Trained | `VERIFY:` unknown. Entered git 2026-08-05 (`de167f9`). |
+| Trained | `VERIFY:` unknown. Final file supplied by the capstone team on 2026-10-30 (300 trees). An older version (500 trees) is in git at `de167f9`. |
 | Origin | **Custom-trained for this project** |
 
 **ExtraTrees is confirmed as the production classifier** — by the capstone team, and it
@@ -169,10 +169,10 @@ keypoints on a canonical 24-FPS timeline and emits three probabilities.
    `accept_source_frame` pads a slow timeline with missing ones, capping the achievable
    ratio at `source_fps / CANONICAL_FPS` so the quality check can never pass. This is
    why `FALL_LIVE_FRAME_STRIDE` is validated to be exactly `1`.
-3. **A wrong-but-compatible model loads silently.** An older XGBoost artifact
-   (`behavior.joblib`) takes the same 141 features and returns the same 3 classes, so
-   pointing at it produces no error — only one failing test. See
-   `backend/weights/README.md`.
+3. **A wrong-but-compatible model loads silently.** An older XGBoost artifact, also
+   named `behavior.joblib`, takes the same 141 features and returns the same 3 classes,
+   so using it produces no error — only one failing test. Identify the file by checksum
+   with `scripts/verify_weights.py`. See `backend/weights/README.md`.
 
 **Severity mapping:** `running` → Medium, everything else (`falling`) → High.
 
@@ -209,9 +209,9 @@ re-identification is not worth its cost on a fixed camera.
 
 | Model | Custom-trained | If lost |
 | --- | --- | --- |
-| `ppe_v4.pt` | Yes | **Must be retrained.** Needs the training dataset — see below. |
-| `sign_model.pt` | Yes | **Must be retrained.** Needs the training dataset. |
-| `best_behavior_model.joblib` | Yes | Recoverable from git history (`de167f9`). |
+| `ppe.pt` | Yes | **Must be retrained.** Needs the training dataset — see below. |
+| `sign.pt` | Yes | **Must be retrained.** Needs the training dataset. |
+| `behavior.joblib` | Yes | Final file is delivered out of band. Git history (`de167f9`) holds only an older fallback version. |
 | `pose.pt` | No | Replaceable with any COCO-pose model. |
 | `reid.pt` | No | Replaceable with any `yolo11m-cls` checkpoint. |
 

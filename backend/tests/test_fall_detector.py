@@ -41,7 +41,7 @@ def test_primary_behavior_classifier_is_extra_trees_with_configured_threads():
 
     assert type(classifier).__name__ == "ExtraTreesClassifier"
     assert classifier.n_jobs == 1
-    assert detector.behavior_model_path.name == "best_behavior_model.joblib"
+    assert detector.behavior_model_path.name == "behavior.joblib"
 
 
 def test_primary_behavior_classifier_returns_three_probabilities():
